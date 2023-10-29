@@ -1,0 +1,4 @@
+global_defs="-DPC -DFIXMATH_NO_CACHE -DFIXMATH_NO_CTYPE -DFIXMATH_NO_HARD_DIVISION -DFIXMATH_FAST_SIN -DFIXMATH_NO_64BIT"
+
+#This is the target that compiles our executable
+g++ $(find src -type f -iregex ".*\.\(cpp\|c\)") -w -lSDL2 -o pc_out ${global_defs}

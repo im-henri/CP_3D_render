@@ -1,0 +1,12 @@
+# Compiled files
+*.o
+*.hhk
+*.bin
+
+# some temporary files under wsl
+*~
+.*~
+
+# vscode
+.vscode/*
+/build/*
