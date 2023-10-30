@@ -1,5 +1,7 @@
 #include "RenderFP3D.hpp"
 
+#include "constants.hpp"
+
 /*
 def rotateOnPlane(self,a,b,radians):
     sin = math.sin(radians)
@@ -23,16 +25,34 @@ void rotateOnPlane(
 }
 
 
-fix16_vec2 getScreenCoordinate(Fix16 FOV, fix16_vec3 point, fix16_vec3 camera_pos, fix16_vec2 camera_rot)
-{
+fix16_vec2 getScreenCoordinate(
+    Fix16 FOV, fix16_vec3 point,
+    fix16_vec3 translate, fix16_vec2 rotation, fix16_vec3 scale,
+    fix16_vec3 camera_pos, fix16_vec2 camera_rot
+) {
     Fix16 sx, sy;
+
+    point.x *= scale.x;
+    point.y *= scale.y;
+    point.z *= scale.z;
+
+    /*
+    Model rotation
+    */
+    rotateOnPlane(point.x, point.z, rotation.x);
+    rotateOnPlane(point.y, point.z, rotation.y);
+
+    /*
+    Model translation + camera position
+    */
     fix16_vec3 temp({
-        point.x - camera_pos.x,
-        point.y - camera_pos.y,
-        point.z - camera_pos.z,
+        point.x + translate.x - camera_pos.x,
+        point.y + translate.y - camera_pos.y,
+        point.z + translate.z - camera_pos.z,
     });
 
     /*
+    Player camera rotation
     x, z = self.rotateOnPlane(x, z, self.camera.xRotation)
     y, z = self.rotateOnPlane(y, z, self.camera.yRotation)
     */

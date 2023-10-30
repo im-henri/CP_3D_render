@@ -3,31 +3,23 @@
 
 #include "RenderFP3D.hpp"
 
-#define SCREEN_X 320
-#define SCREEN_Y 528
+#include "constants.hpp"
+
+#include "Model.hpp"
 
 #ifndef PC
-    #include <appdef.hpp>
-    /*
-    * Fill this section in with some information about your app.
-    * All fields are optional - so if you don't need one, take it out.
-    */
-    APP_NAME("aa")
-    APP_DESCRIPTION("bb")
-    APP_AUTHOR("cc")
-    APP_VERSION("1.0.0")
-
+    #include "app_description.hpp"
     #include <sdk/calc/calc.hpp>
     #include <sdk/os/lcd.hpp>
     #include <sdk/os/debug.hpp>
-
+    #include <sdk/os/mem.hpp>
+    #include <sdk/os/file.hpp>
 #else
 #   include <SDL2/SDL.h>
 #   include <iostream>
+#   include <unistd.h>  // File open & close
+#   include <fcntl.h>   // File open & close
 #endif
-
-// Defined in breakpoint_handler_stub.s
-extern "C" void ASM_NOP();
 
 #ifdef PC
 Uint32 * screenPixels;
@@ -98,6 +90,38 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     }
 }
 
+// Returns false could not find (Also seeks back to original location)
+// Returns true if could find target
+bool seek_next_char(int fd, char target)
+{
+    bool found = false;
+    const uint16_t BUF_SIZE = 64;
+    char buf[BUF_SIZE];
+    int total_seek = 0;
+    while(!found){
+        int rd_bytes = read(fd, buf, BUF_SIZE);
+        // Check if end of file was reached
+        if (rd_bytes == 0)
+            break;
+        total_seek += rd_bytes;
+        // Go through buf to check if target was there
+        // And seek to the target when found
+        uint16_t idx = 0;
+        while(buf[idx] != '\0'){
+            if (buf[idx] == target){
+                lseek(fd, -rd_bytes+idx, SEEK_CUR);
+                found = true;
+                break;
+            }
+            idx++;
+        }
+    }
+    if(!found)
+        lseek(fd, -total_seek, SEEK_CUR);
+    return found;
+}
+
+
 #ifndef PC
 extern "C" void main()
 {
@@ -134,12 +158,21 @@ int main(int argc, const char * argv[])
     SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
     screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
 
+    bool key_left = false;
+    bool key_right = false;
+    bool key_up = false;
+    bool key_down = false;
+    bool key_r = false;
+    bool key_f = false;
+    bool key_1 = false;
+    bool key_2 = false;
+    bool key_w = false;
+    bool key_s = false;
+    bool key_a = false;
+    bool key_d = false;
+
 #endif
-
-    fillScreen(color(255,255,255));
-
-    bool done = false;
-    fix16_vec3 cube_vertices[8] = {
+    fix16_vec3 cube_vertices[] = {
         // Lower 4 vertices
         {-1.0f, -1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
         {-1.0f,  1.0f, -1.0f}, {1.0f,  1.0f, -1.0f},
@@ -148,28 +181,149 @@ int main(int argc, const char * argv[])
         {-1.0f, -1.0f,  1.0f}, {1.0f, -1.0f,  1.0f},
         {-1.0f,  1.0f,  1.0f}, {1.0f,  1.0f,  1.0f}
     };
-    #define CUBE_LINE_ARR_SIZE 24
-    uint16_t cube_lines[CUBE_LINE_ARR_SIZE] = {
-        0,1,
-        0,2,
-        1,3,
-        2,3,
-
-        0+4,1+4,
-        0+4,2+4,
-        1+4,3+4,
-        2+4,3+4,
-
-        0,4,
-        1,5,
-        2,6,
-        3,7
+    u_pair cube_edges[] = {
+        {0,1}, {0,2}, {1,3}, {2,3},
+        {0+4,1+4}, {0+4,2+4}, {1+4,3+4}, {2+4,3+4},
+        {0,4}, {1,5}, {2,6}, {3,7}
     };
+    Model cube1(
+        &(cube_vertices[0]),(sizeof(cube_vertices) / sizeof(cube_vertices[0])),
+        &(cube_edges[0]),   (sizeof(cube_edges) / sizeof(cube_edges[0]))
+    );
+    cube1.getPosition_ref().y -= 6.0f;
 
-    fix16_vec3 camera_pos = {-2.0f, -1.6f, -3.0f};
-    fix16_vec2 camera_rot = {0.7f, 0.6f};
 
-    Fix16 FOV = 200.0f;
+    // Example: reading 256 bytes from a file called @c test.txt from the USB flash
+    //int fd = open("\\\\fls0\\test.txt", OPEN_READ);
+    char buf[256] = "6.0\0";
+    //int ret = read(fd, buf, sizeof(buf));
+    //ret = close(fd);
+
+#ifdef PC
+
+    int f_read = open("./hi.obj", O_RDONLY);
+    std::cout << "f_read: " << f_read << std::endl;
+    bool success = seek_next_char(f_read, 'v');
+    if (!success){
+        std::cout << "Could not find 'x'" << std::endl;
+    }
+    int rd_bytes = read(f_read, buf, 32);
+    std::cout << "Reading 32bytes after seeking: Read count:"<< rd_bytes << " | String: " << buf << std::endl;
+
+    close(f_read);
+#else
+    // int lseek(int fd, int offset, int whence);
+    // /// Set the file offset to @c offset.
+    // const int SEEK_SET = 0;
+    // /// Set the file offset to the current position, plus @c offset bytes.
+    // const int SEEK_CUR = 1;
+    // ///Set the file offset to the end of the file, plus @c offset bytes.
+    // const int SEEK_END = 2;
+#endif
+
+    // ----
+    fix16_vec3 test_vertices[] = {
+
+        {0.0f,   0.0f,   0.0f}, // Padding since numbering starts from 1 (LATER REMOVE THIS!)
+
+        {-2.160963f,   0.631728f,   -0.317909f},
+        {-2.160963f,   4.239110f,   -0.317909f},
+        {-2.160963f,   0.631728f,   0.317909f},
+        {-2.160963f,   4.239110f,   0.317909f},
+        {-0.022835f,   0.631728f,   -0.317909f},
+        {-0.022835f,   0.631728f,   0.317909f},
+        {-0.022835f,   4.239110f,   -0.317909f},
+        {-0.022835f,   4.239110f,   0.317909f},
+        {1.789928f,    4.239110f,   -0.317909f},
+        {1.789928f,    4.239110f,   0.317909f},
+        {1.789928f,    -4.239110f,  -0.317909f},
+        {1.789928f,    -4.239110f,  0.317909f},
+        {-0.022835f,   -4.239110f,  -0.317909f},
+        {-0.022835f,   -4.239110f,  0.317909f},
+        {-0.022835f,   -0.904996f,  -0.317909f},
+        {-0.022835f,   -0.904996f,  0.317909f},
+        {-2.160963f,   -0.904996f,  -0.317909f},
+        {-2.160963f,   -0.904996f,  0.317909f},
+        {-2.160963f,   -4.239110f,  -0.317909f},
+        {-2.160963f,   -4.239110f,  0.317909f},
+        {-3.973727f,   -4.239110f,  -0.317909f},
+        {-3.973727f,   -4.239110f,  0.317909f},
+        {-3.973727f,   4.239110f,   -0.317909f},
+        {-3.973727f,   4.239110f,   0.317909f},
+        {3.973727f, -4.239110f, -0.317909f},
+        {3.973727f, 0.737936f, -0.317909f},
+        {3.973727f, -4.239110f, 0.317909f},
+        {3.973727f, 0.737936f, 0.317909f},
+        {2.562321f, -4.239110f, -0.317909f},
+        {2.562321f, -4.239110f, 0.317909f},
+        {2.562321f, 0.737936f, -0.317909f},
+        {2.562321f, 0.737936f, 0.317909f},
+        {2.562321f, 2.352888f, -0.317909f},
+        {2.562321f, 1.204561f, -0.317909f},
+        {2.562321f, 2.352888f, 0.317909f},
+        {2.562321f, 1.204561f, 0.317909f},
+        {3.973727f, 2.352888f, -0.317909f},
+        {3.973727f, 2.352888f, 0.317909f},
+        {3.973727f, 1.204561f, -0.317909f},
+        {3.973727f, 1.204561f, 0.317909f},
+    };
+    u_pair test_edges[] = {
+{1, 2},{6, 1},{3, 16},{6, 16},
+{6, 12},{10, 8},{8, 5},{7, 5},
+{7, 9},{5, 9},{15, 5},{15, 11},
+{15, 13},{18, 15},{17, 15},{20, 17},
+{18, 22},{22, 19},{21, 19},{24, 21},
+{3, 24},{4, 24},{4, 23},{2, 23},
+{23, 21},{23, 1},{21, 1},{1, 5},
+{21, 17},{3, 22},{19, 17},{16, 13},
+{13, 11},{14, 11},{17, 5},{11, 9},
+{9, 7},{10, 7},{12, 9},{16, 14},
+{18, 16},{5, 1},{3, 2},{2, 1},
+{2, 3},{1, 3},{16, 6},{16, 12},
+{12, 10},{8, 6},{5, 6},{5, 8},
+{9, 5},{9, 11},{5, 11},{11, 13},
+{13, 16},{15, 16},{15, 18},{17, 18},
+{22, 20},{19, 20},{19, 22},{21, 22},
+{24, 22},{24, 3},{23, 24},{23, 4},
+{21, 24},{1, 21},{1, 17},{5, 17},{17, 19},{22, 18},{17, 20},
+{13, 14},{11, 14},{11, 12},{5, 15},{9, 12},{7, 10},{7, 8},
+{9, 10},{14, 12},{16, 3},{1, 6},{2, 4},{1, 23}, {1, 3},
+{6, 3},{3, 6},{6, 12},{6, 10},{10, 6},{8, 6},{7, 8},
+{7, 5},{5, 11},{15, 11},{15, 13},{15, 16},{18, 16},{17, 18},
+{20, 18},{18, 20},{22, 20},{21, 22},{24, 22},{3, 22},{4, 3},
+{4, 24},{2, 4},{23, 24},{23, 21},{21, 17},{1, 17},{21, 19},
+{3, 18},{19, 20},{16, 14},{13, 14},{14, 12},{17, 15},{11, 12},
+{9, 10},{10, 8},{12, 10},{16, 12},{18, 3},{5, 6},{3, 4},{2, 23},
+{25, 26},{30, 25},{27, 32},{32, 29},{31, 29},{28, 31},{26, 31},
+{31, 26},{28, 32},{29, 25},{27, 26},{29, 26},{33, 34},{38, 33},
+{35, 40},{40, 37},{39, 37},{36, 39},{34, 39},{39, 34},{36, 40},
+{37, 33},{35, 34},{37, 34},{25, 27},{30, 27},{27, 30},{32, 30},
+{31, 32},{28, 32},{26, 28},{31, 29},{28, 27},{29, 30},{27, 28},
+{29, 25},{33, 35},{38, 35},{35, 38},{40, 38},{39, 40},{36, 40},
+{34, 36},{39, 37},{36, 35},{37, 38},{35, 36},{37, 33},{26, 27},
+{25, 27},{32, 30},{29, 30},{29, 32},{31, 32},{31, 28},{26, 29},
+{32, 27},{25, 30},{26, 28},{26, 25},{34, 35},{33, 35},{40, 38},
+{37, 38},{37, 40},{39, 40},{39, 36},{34, 37},{40, 35},{33, 38},
+{34, 36},{34, 33}
+    };
+    Model testmodel(
+        &(test_vertices[0]),(sizeof(test_vertices) / sizeof(test_vertices[0])),
+        &(test_edges[0]),   (sizeof(test_edges) / sizeof(test_edges[0]))
+    );
+
+    Model* all_models[] = {
+        &cube1, &testmodel
+    };
+    const unsigned all_model_count = sizeof(all_models) / sizeof(all_models[0]);
+
+    fix16_vec3 camera_pos = {-9.0f, -1.6f, -10.0f};
+    fix16_vec2 camera_rot = {0.8f, 0.2f};
+
+    Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
+
+    Fix16 fix_val1 = 0.0f;
+
+    bool done = false;
     while(!done)
     {
         fillScreen(color(255,255,255));
@@ -226,6 +380,8 @@ int main(int argc, const char * argv[])
 #else
         // Get the next event
         SDL_Event event;
+
+
         if (SDL_PollEvent(&event))
         {
             switch( event.type ){
@@ -233,92 +389,129 @@ int main(int argc, const char * argv[])
                 /* Pass the event data onto PrintKeyInfo() */
                 case SDL_KEYDOWN:
                     switch( event.key.keysym.sym ){
-                        case SDLK_LEFT:
-                            //camera_pos.x -= 0.1f;
-                            camera_pos.z += camera_rot.x.sin()*0.1f;
-                            camera_pos.x -= camera_rot.x.cos()*0.1f;
-                            break;
-                        case SDLK_RIGHT:
-                            //camera_pos.x += 0.1f;
-                            camera_pos.z -= camera_rot.x.sin()*0.1f;
-                            camera_pos.x += camera_rot.x.cos()*0.1f;
-                            break;
-                        case SDLK_UP:
-                            //camera_pos.z += 0.1f;
-                            camera_pos.x += camera_rot.x.sin()*0.1f;
-                            camera_pos.z += camera_rot.x.cos()*0.1f;
-                            break;
-                        case SDLK_DOWN:
-                            //camera_pos.z -= 0.1f;
-                            camera_pos.x -= camera_rot.x.sin()*0.1f;
-                            camera_pos.z -= camera_rot.x.cos()*0.1f;
-                            break;
-                        case SDLK_r:
-                            camera_pos.y -= 0.1f;
-                            break;
-                        case SDLK_f:
-                            camera_pos.y += 0.1f;
-                            break;
-
-                        case SDLK_a:
-                            camera_rot.x -= 0.1f;
-                            break;
-                        case SDLK_d:
-                            camera_rot.x += 0.1f;
-                            break;
-                        case SDLK_w:
-                            camera_rot.y -= 0.1f;
-                            break;
-                        case SDLK_s:
-                            camera_rot.y += 0.1f;
-                            break;
-
-                        case SDLK_1:
-                            FOV += 1.0f;
-                            break;
-                        case SDLK_2:
-                            FOV -= 1.0f;
-                            break;
-                        default:
-                            break;
+                        case SDLK_LEFT:  key_left  = true; break;
+                        case SDLK_RIGHT: key_right = true; break;
+                        case SDLK_UP:    key_up    = true; break;
+                        case SDLK_DOWN:  key_down  = true; break;
+                        case SDLK_r:     key_r     = true; break;
+                        case SDLK_f:     key_f     = true; break;
+                        case SDLK_a:     key_a     = true; break;
+                        case SDLK_d:     key_d     = true; break;
+                        case SDLK_w:     key_w     = true; break;
+                        case SDLK_s:     key_s     = true; break;
+                        case SDLK_1:     key_1     = true; break;
+                        case SDLK_2:     key_2     = true; break;
+                        default:                           break;
                     }
-                case SDL_KEYUP:
-                    //PrintKeyInfo( &event.key );
                     break;
-
-                /* SDL_QUIT event (window close) */
+                case SDL_KEYUP:
+                    switch( event.key.keysym.sym ){
+                        case SDLK_LEFT:  key_left  = false; break;
+                        case SDLK_RIGHT: key_right = false; break;
+                        case SDLK_UP:    key_up    = false; break;
+                        case SDLK_DOWN:  key_down  = false; break;
+                        case SDLK_r:     key_r     = false; break;
+                        case SDLK_f:     key_f     = false; break;
+                        case SDLK_a:     key_a     = false; break;
+                        case SDLK_d:     key_d     = false; break;
+                        case SDLK_w:     key_w     = false; break;
+                        case SDLK_s:     key_s     = false; break;
+                        case SDLK_1:     key_1     = false; break;
+                        case SDLK_2:     key_2     = false; break;
+                        default:                           break;
+                    }
+                    break;
                 case SDL_QUIT:
                     done = true;
                     break;
-
                 default:
                     break;
             }
         }
+
+        if (key_left){
+            camera_pos.z += camera_rot.x.sin()*0.006f;
+            camera_pos.x -= camera_rot.x.cos()*0.006f;
+        }
+        if (key_right){
+            camera_pos.z -= camera_rot.x.sin()*0.006f;
+            camera_pos.x += camera_rot.x.cos()*0.006f;
+        }
+        if (key_up){
+            camera_pos.x += camera_rot.x.sin()*0.006f;
+            camera_pos.z += camera_rot.x.cos()*0.006f;
+        }
+        if (key_down){
+            camera_pos.x -= camera_rot.x.sin()*0.006f;
+            camera_pos.z -= camera_rot.x.cos()*0.006f;
+        }
+        if (key_r){
+            camera_pos.y -= 0.006f;
+        }
+        if (key_f){
+            camera_pos.y += 0.006f;
+        }
+
+        if (key_a){
+            camera_rot.x -= 0.002f;
+        }
+        if (key_d){
+            camera_rot.x += 0.002f;
+        }
+        if (key_w){
+            camera_rot.y -= 0.002f;
+        }
+        if (key_s){
+            camera_rot.y += 0.002f;
+        }
+
+        if (key_1){
+            FOV += 0.1f;
+        }
+        if (key_2){
+            FOV -= 0.1f;
+        }
 #endif
 
 // --------------------------------------------------
-        // Creating screen coordinates of the cube and drawing red boxes on vertices
-        fix16_vec2 screen_cube[8];
-        for (int i=0; i<8; i++){
-            auto screen_vec2 = getScreenCoordinate(FOV, cube_vertices[i], camera_pos, camera_rot);
-            int16_t x = (int16_t)screen_vec2.x;
-            int16_t y = (int16_t)screen_vec2.y;
-            screen_cube[i] = {x, y};
-            draw_center_square(x, y, 4,4, color(255,0,0));
-            //setPixel(x, y, color(0,0,0));
-        }
-        // Drawng edges of the cube
-        int i=0;
-        while(i<CUBE_LINE_ARR_SIZE)
-        {
+        all_models[0]->getRotation_ref().x += 0.004f;
+        all_models[0]->getRotation_ref().y += 0.002f;
+        all_models[0]->getScale_ref().x = fix_val1.sin() * 0.4f + 1.0f;
 
-            line((int16_t)(screen_cube[cube_lines[i+0]].x), (int16_t)(screen_cube[cube_lines[i+0]].y),
-                 (int16_t)(screen_cube[cube_lines[i+1]].x), (int16_t)(screen_cube[cube_lines[i+1]].y),
-                color(0,0,0)
-            );
-            i+=2;
+        testmodel.getRotation_ref().y += 0.03f;
+
+        fix_val1 += 0.03f;
+
+        for (unsigned m_id=0; m_id<all_model_count; m_id++)
+        {
+            // For each model..
+            // Get screen coordinates (And visualize vertices)
+            fix16_vec2* screen_coords = (fix16_vec2*) malloc(sizeof(fix16_vec2) * all_models[m_id]->vertex_count);
+            for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                auto screen_vec2 = getScreenCoordinate(
+                    FOV, all_models[m_id]->vertices[v_id],
+                    all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                    all_models[m_id]->getScale_ref(),
+                    camera_pos, camera_rot
+                );
+                int16_t x = (int16_t)screen_vec2.x;
+                int16_t y = (int16_t)screen_vec2.y;
+                screen_coords[v_id] = {x, y};
+                draw_center_square(x, y, 4,4, color(255,0,0));
+                //setPixel(x, y, color(0,0,0));
+            }
+            // Draw edges of the cube
+            for(unsigned e_id=0; e_id<all_models[m_id]->edge_count; e_id++){
+                line((int16_t)(screen_coords[all_models[m_id]->edges[e_id].First].x),
+                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].First].y),
+                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].Second].x),
+                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].Second].y),
+                    color(0,0,0)
+                );
+            }
+            free(screen_coords);
         }
+
 // --------------------------------------------------
 
         // ----- Refresh screen -----
@@ -343,86 +536,3 @@ int main(int argc, const char * argv[])
     SDL_Quit();
 #endif
 }
-
-
-
-
-
-
-
-
-/*
-// Demo of using libfixmath on Classpads SH4
-// https://github.com/PetteriAimonen/libfixmath/tree/master/libfixmath
-// Note that not all of the source is included. If you need other functionaly
-// then put the libfixmath source under "src/Fixmath"
-#include "libfixmath/fix16.hpp"
-//
-#include "app_description.hpp"
-#include <sdk/calc/calc.hpp>
-#include <sdk/os/lcd.hpp>
-#include <sdk/os/debug.hpp>
-
-#define SCREEN_X 320
-#define SCREEN_Y 528
-
-void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t color)
-{
-    for(int16_t i=-sx/2; i<sx/2; i++)
-    {
-        for(int16_t j=-sy/2; j<sy/2; j++)
-        {
-            setPixel(cx+i, cy+j, color);
-        }
-    }
-}
-
-extern "C"
-void main()
-{
-    calcInit(); //backup screen and init some variables
-
-    // Constants such as PI or e are available
-    Fix16 angle = -fix16_pi;
-    Fix16 hue   = 0.0f;
-    while(true){
-        // ------ Clear screen ------
-        fillScreen(color(255, 255, 255));
-
-        // ----- Check for exit -----
-        uint32_t k1,k2;
-        getKey(&k1,&k2);
-        if(testKey(k1,k2,KEY_CLEAR))
-            break;
-
-        // ------ Fix16 example ------
-        // Supports math with float
-        angle += 0.10f;
-        hue   += 0.02f;
-        // Trigonometric functions
-        auto sin_angle = angle.sin();
-        auto cos_angle = angle.cos();
-        // Fix16 casted to int16_t
-        int16_t x = (sin_angle * 40.0f);
-        int16_t y = (cos_angle * 40.0f);
-        // Coloring r
-        int16_t hue_r = (int16_t) ((hue.sin() + 1.0f)/2.0f * 255.0f);
-        int16_t hue_b = (int16_t) ((hue.cos() + 1.0f)/2.0f * 255.0f);
-        uint8_t col_r = hue_r;
-        uint8_t col_g = 0;
-        uint8_t col_b = hue_b;
-        draw_center_square(SCREEN_X/2 + x, SCREEN_Y/2 + y, 30, 30, color(col_r,col_g,col_b));
-        // Debug printing
-        char buff[14];
-        fix16_to_str(sin_angle, buff, 3);
-        Debug_Printf(2, 2, false, 0, "sin(angle)=%s", buff);
-        fix16_to_str(cos_angle, buff, 3);
-        Debug_Printf(2, 3, false, 0, "cos(angle)=%s", buff);
-
-        // ----- Refresh screen -----
-        LCD_Refresh();
-    }
-
-    calcEnd(); //restore screen and do stuff
-}
-*/

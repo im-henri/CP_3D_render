@@ -1,3 +1,5 @@
+TODO: Update readme (hollyhock2)
+
 3D Renderer using fixed point math.
 
 To compile:

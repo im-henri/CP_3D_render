@@ -1,3 +1,5 @@
+#pragma once
+
 #include <appdef.hpp>
 /*
  * Fill this section in with some information about your app.

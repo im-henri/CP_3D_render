@@ -58,7 +58,7 @@ clean:
 	rm -f $(APP_ELF) $(OBJECTS)
 	rm -rf $(BUILD_DIR)
 
-PC:
+PC: all
 	./makepc
 	./pc_out
 

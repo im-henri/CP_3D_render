@@ -2,9 +2,6 @@
 
 #include "libfixmath/fix16.hpp"
 
-#define SCREEN_X 320
-#define SCREEN_Y 528
-
 struct fix16_vec2
 {
     Fix16 x;
@@ -19,4 +16,7 @@ struct fix16_vec3
 };
 
 void rotateOnPlane(Fix16& a, Fix16& b, Fix16 radians);
-fix16_vec2 getScreenCoordinate(Fix16 FOV, fix16_vec3 point, fix16_vec3 camera_pos, fix16_vec2 camera_rot);
+fix16_vec2 getScreenCoordinate(
+    Fix16 FOV,
+    fix16_vec3 point, fix16_vec3 translate, fix16_vec2 rotation, fix16_vec3 scale,
+    fix16_vec3 camera_pos, fix16_vec2 camera_rot);
