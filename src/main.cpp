@@ -7,6 +7,8 @@
 
 #include "Model.hpp"
 
+#include "StringUtils.hpp"
+
 #ifndef PC
     #include "app_description.hpp"
     #include <sdk/calc/calc.hpp>
@@ -90,37 +92,6 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     }
 }
 
-// Returns false could not find (Also seeks back to original location)
-// Returns true if could find target
-bool seek_next_char(int fd, char target)
-{
-    bool found = false;
-    const uint16_t BUF_SIZE = 64;
-    char buf[BUF_SIZE];
-    int total_seek = 0;
-    while(!found){
-        int rd_bytes = read(fd, buf, BUF_SIZE);
-        // Check if end of file was reached
-        if (rd_bytes == 0)
-            break;
-        total_seek += rd_bytes;
-        // Go through buf to check if target was there
-        // And seek to the target when found
-        uint16_t idx = 0;
-        while(buf[idx] != '\0'){
-            if (buf[idx] == target){
-                lseek(fd, -rd_bytes+idx, SEEK_CUR);
-                found = true;
-                break;
-            }
-            idx++;
-        }
-    }
-    if(!found)
-        lseek(fd, -total_seek, SEEK_CUR);
-    return found;
-}
-
 
 #ifndef PC
 extern "C" void main()
@@ -172,6 +143,7 @@ int main(int argc, const char * argv[])
     bool key_d = false;
 
 #endif
+
     fix16_vec3 cube_vertices[] = {
         // Lower 4 vertices
         {-1.0f, -1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
@@ -193,33 +165,35 @@ int main(int argc, const char * argv[])
     cube1.getPosition_ref().y -= 6.0f;
 
 
+#ifdef PC
+    //char model_path[] = "./hi.obj";
+    //char model_path[] = "./test.obj";
+    char model_path[] = "./suzanne.obj";
+#else
+    char model_path[] = "\\fls0\\suzanne.obj";
+    //char model_path[] = "\\fls0\\hi.obj";
+#endif
+
+    fillScreen(color(255,255,255));
+#ifndef PC
+    Debug_SetCursorPosition(1,1);
+    Debug_PrintString("Load obj", false);
+    LCD_Refresh();
+#else
+    SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+#endif
+    Model model_test = Model(model_path);
+
+
     // Example: reading 256 bytes from a file called @c test.txt from the USB flash
     //int fd = open("\\\\fls0\\test.txt", OPEN_READ);
-    char buf[256] = "6.0\0";
+    //char buf[256] = "6.0\0";
     //int ret = read(fd, buf, sizeof(buf));
     //ret = close(fd);
 
-#ifdef PC
-
-    int f_read = open("./hi.obj", O_RDONLY);
-    std::cout << "f_read: " << f_read << std::endl;
-    bool success = seek_next_char(f_read, 'v');
-    if (!success){
-        std::cout << "Could not find 'x'" << std::endl;
-    }
-    int rd_bytes = read(f_read, buf, 32);
-    std::cout << "Reading 32bytes after seeking: Read count:"<< rd_bytes << " | String: " << buf << std::endl;
-
-    close(f_read);
-#else
-    // int lseek(int fd, int offset, int whence);
-    // /// Set the file offset to @c offset.
-    // const int SEEK_SET = 0;
-    // /// Set the file offset to the current position, plus @c offset bytes.
-    // const int SEEK_CUR = 1;
-    // ///Set the file offset to the end of the file, plus @c offset bytes.
-    // const int SEEK_END = 2;
-#endif
 
     // ----
     fix16_vec3 test_vertices[] = {
@@ -312,7 +286,8 @@ int main(int argc, const char * argv[])
     );
 
     Model* all_models[] = {
-        &cube1, &testmodel
+        // &cube1, &testmodel, &model_test
+        &model_test
     };
     const unsigned all_model_count = sizeof(all_models) / sizeof(all_models[0]);
 
@@ -476,9 +451,9 @@ int main(int argc, const char * argv[])
 // --------------------------------------------------
         all_models[0]->getRotation_ref().x += 0.004f;
         all_models[0]->getRotation_ref().y += 0.002f;
-        all_models[0]->getScale_ref().x = fix_val1.sin() * 0.4f + 1.0f;
+        //all_models[0]->getScale_ref().x = fix_val1.sin() * 0.1f + 1.0f;
 
-        testmodel.getRotation_ref().y += 0.03f;
+        //testmodel.getRotation_ref().y += 0.03f;
 
         fix_val1 += 0.03f;
 
@@ -497,7 +472,7 @@ int main(int argc, const char * argv[])
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
-                draw_center_square(x, y, 4,4, color(255,0,0));
+                //draw_center_square(x, y, 4,4, color(255,0,0));
                 //setPixel(x, y, color(0,0,0));
             }
             // Draw edges of the cube
