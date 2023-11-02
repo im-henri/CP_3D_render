@@ -2,6 +2,8 @@
 
 #include "StringUtils.hpp"
 
+#include "constants.hpp"
+
 #ifndef PC
 #   include <sdk/os/file.hpp>
 #   include <sdk/os/mem.hpp>
@@ -17,11 +19,14 @@
 Model::Model(
     fix16_vec3* vertices,
     unsigned vertex_count,
-    u_pair* edges,
-    unsigned edge_count
+    u_triple*   faces,
+    unsigned    faces_count
+    // u_pair* edges,       // TODO MUST ADD THESE ASWELL!
+    // unsigned edge_count  // TODO MUST ADD THESE ASWELL!
 ) : loaded_from_file(false),
     position({0.0f, 0.0f, 0.0f}), rotation({0.0f, 0.0f}), scale({1.0f,1.0f,1.0f}),
-    vertices(vertices), vertex_count(vertex_count), edges(edges), edge_count(edge_count)
+    vertices(vertices), vertex_count(vertex_count),
+    faces(faces), faces_count(faces_count)
 { }
 
 Model::~Model()
@@ -29,7 +34,7 @@ Model::~Model()
     if(loaded_from_file)
     {
         free(vertices);
-        free(edges);
+        free(faces);
     }
 }
 
@@ -37,14 +42,11 @@ Model::Model(
     char* fname
 ) : loaded_from_file(false),
     position({0.0f, 0.0f, 0.0f}), rotation({0.0f, 0.0f}), scale({1.0f,1.0f,1.0f}),
-    vertices(nullptr), vertex_count(0), edges(nullptr), edge_count(0)
+    faces(nullptr), faces_count(0),
+    vertices(nullptr), vertex_count(0)
 {
-#ifndef PC
-    Debug_SetCursorPosition(1,1);
-    Debug_PrintString("ctor", false);
-    LCD_Refresh();
-#endif
-    loaded_from_file = this->load_from_file(fname);
+    //loaded_from_file = this->load_from_raw_obj_file(fname);
+    loaded_from_file = this->load_from_binary_obj_file(fname);
 }
 
 fix16_vec3& Model::getPosition_ref()
@@ -61,13 +63,35 @@ fix16_vec3& Model::getScale_ref()
 {
     return this->scale;
 }
-#ifdef PC
-#   define UNIVERSIAL_FILE_READ O_RDONLY
-#else
-#   define UNIVERSIAL_FILE_READ OPEN_READ
-#endif
 
-bool Model::load_from_file(char* fname)
+bool Model::load_from_binary_obj_file(char* fname)
+{
+    int fd = open(fname, UNIVERSIAL_FILE_READ );
+    char buff[16] = {0};
+    int rd_bytes;
+
+    rd_bytes = read(fd, buff, 8+1);
+    uint32_t vert_count = *((uint32_t*)(buff+0));
+    uint32_t face_count = *((uint32_t*)(buff+4));
+    //
+    this->vertex_count = vert_count;
+    this->faces_count = face_count;
+    //
+    unsigned lseek_vert_start = 8;
+    unsigned lseek_face_start = lseek_vert_start + vert_count * 3 * 4;
+
+    // Read binary to vertices
+    lseek(fd, lseek_vert_start, SEEK_SET);
+    this->vertices = (fix16_vec3*) malloc(sizeof(fix16_vec3) * this->vertex_count);
+    rd_bytes = read(fd, this->vertices, vert_count*3*4); // vert_count(?x) * x,y,z(3x) * 32b Fix16 (4bytes)
+    // Read binary to faces
+    lseek(fd, lseek_face_start, SEEK_SET);
+    this->faces    = (u_triple*)   malloc(sizeof(u_triple)   * this->faces_count);
+    rd_bytes = read(fd, this->faces, face_count*3*4);   // face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
+
+    return true;
+}
+bool Model::load_from_raw_obj_file(char* fname)
 {
     const unsigned MAX_FLOAT_SIZE_IN_STRING = 32; // 32 is kind of overkill
 
@@ -93,17 +117,16 @@ bool Model::load_from_file(char* fname)
 #ifndef PC
     Debug_Printf(1,1, false, 0, "linebuf: %s", line_buff);
     Debug_Printf(1,3, false, 0, "vert cnt: %d", vertex_count);
-    Debug_Printf(1,4, false, 0, "edge cnt: %d", edge_count);
     Debug_Printf(1,5, false, 0, "row  cnt: %d", row_count);
     LCD_Refresh();
     row_count++;
 #endif
         if     (line_buff[0] == 'v') this->vertex_count += 1;
-        else if(line_buff[0] == 'f') this->edge_count   += 3;
+        else if(line_buff[0] == 'f') this->faces_count  += 1;
     }
 #ifdef PC
     std::cout << "this->vertex_count: " << this->vertex_count << std::endl;
-    std::cout << "this->edge_count:   " << this->edge_count   << std::endl;
+    std::cout << "this->faces_count:  " << this->faces_count  << std::endl;
 #endif
 #ifndef PC
     Debug_SetCursorPosition(1,1);
@@ -112,13 +135,13 @@ bool Model::load_from_file(char* fname)
 #endif
     // -- Allocating now memories for the model
     this->vertices = (fix16_vec3*) malloc(sizeof(fix16_vec3) * this->vertex_count);
-    this->edges    = (u_pair*)     malloc(sizeof(u_pair)     * this->edge_count);
+    this->faces    = (u_triple*)   malloc(sizeof(u_triple)   * this->faces_count);
 
     // -- Second pass actually reading data
     // Restart from file begin
     lseek(f_read, 0, SEEK_SET);
     int v_idx = 0;
-    int edge_idx = 0;
+    int face_idx = 0;
     while(read_line(f_read, line_buff, LINE_BUFF_SZ))
     {
 #ifndef PC
@@ -164,13 +187,10 @@ bool Model::load_from_file(char* fname)
                                             while(  *tmp_col == ' ') tmp_col += 1;
                 face_verts[fv_i] = custom_atoi(fv_i_start) - 1;
             }
-            // Now we can make lines to form the face
-            for (int edge_i=0; edge_i<3; edge_i++)
-            {
-                edges[edge_idx].First  = face_verts[ (edge_i)  % 3];
-                edges[edge_idx].Second = face_verts[(edge_i+1) % 3];
-                edge_idx += 1;
-            }
+            faces[face_idx].First  = face_verts[0];
+            faces[face_idx].Second = face_verts[1];
+            faces[face_idx].Third  = face_verts[2];
+            face_idx += 1;
         }
     }
 

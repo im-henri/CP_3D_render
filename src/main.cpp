@@ -23,9 +23,106 @@
 #   include <fcntl.h>   // File open & close
 #endif
 
+
+
+
+
+//
+// ----------------------
+//
+
+// Since endianess differ on PC and CP using ifdef
+// to define PC that turns manually bytes into value.
+inline uint32_t ByteArrToUint32_t(char* bytes)
+{
+#ifdef PC
+    return   ((uint32_t) ((unsigned char*) bytes)[3]) << 0*8 |
+             ((uint32_t) ((unsigned char*) bytes)[2]) << 1*8 |
+             ((uint32_t) ((unsigned char*) bytes)[1]) << 2*8 |
+             ((uint32_t) ((unsigned char*) bytes)[0]) << 3*8;
+#else
+    return *((uint32_t*)(bytes));
+#endif
+}
+
+bool DEBUG_TEST()
+{
+    return false;
+    // True  = EXIT
+    // False = CONTINUE
+
+    int fd = open(
+#ifdef PC
+        "./processed_comp.PCObj",
+#else
+        "\\fls0\\processed_calc.PCObj",
+#endif
+        UNIVERSIAL_FILE_READ
+    );
+
+    char buff[1024] = {0};
+    int rd_bytes;
+
+    rd_bytes = read(fd, buff, 8+1);
+    uint32_t vert_count = *((uint32_t*)(buff+0));
+    uint32_t face_count = *((uint32_t*)(buff+4));
+    //
+    unsigned lseek_vert_start = 8;
+    unsigned lseek_face_start = lseek_vert_start + vert_count * 3 * 4;
+
+    lseek(fd, lseek_vert_start, SEEK_SET);
+    fix16_vec3* verts = (fix16_vec3*) malloc(sizeof(fix16_vec3) * vert_count);
+    rd_bytes = read(fd, verts, vert_count*3*4);
+
+    lseek(fd, lseek_face_start, SEEK_SET);
+    u_triple* faces    = (u_triple*) malloc(sizeof(u_triple) * face_count);
+    rd_bytes = read(fd, faces, face_count*3*4);   // face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
+
+
+#ifdef PC
+    std::cout << "rd_bytes:   0x" << std::hex << rd_bytes << std::endl;
+    std::cout << "vert_count: 0x" << std::hex << vert_count  << std::endl;
+    std::cout << "face_count: 0x" << std::hex << face_count  << std::endl;
+    for(int i=0; i<vert_count; i++){
+        std::cout << "v("<<i<<")  "
+            << (float) verts[i].x << " "
+            << (float) verts[i].y << " "
+            << (float) verts[i].z << std::endl;
+    }
+    std::cout << std::endl;
+    for(int i=0; i<face_count; i++){
+        std::cout << "v("<<i<<")  "
+            << faces[i].First << " "
+            << faces[i].Second << " "
+            << faces[i].Third << std::endl;
+    }
+#else
+    fillScreen(color(255,255,255));
+    Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", rd_bytes);
+    Debug_Printf(1,2, false, 0, "vert_count: 0x%x", vert_count );
+    Debug_Printf(1,3, false, 0, "face_count: 0x%x", face_count );
+    Debug_Printf(1,4, false, 0, "Reading 0:  0x%x", verts[0].x.value );
+    Debug_Printf(1,5, false, 0, "Reading 1:  0x%x", verts[0].y.value );
+    LCD_Refresh();
+#endif
+
+    close(fd);
+    free(verts);
+
+    return true;
+    // True  = EXIT
+    // False = CONTINUE
+}
+
+
+//
+// ----------------------
+//
+
+
 #ifdef PC
 Uint32 * screenPixels;
-void setPixel(int x, int y, uint16_t color)
+void setPixel(int x, int y, uint32_t color)
 {
     screenPixels[y * SCREEN_X + x] = color;
 }
@@ -34,17 +131,16 @@ void LCD_ClearScreen()
 {
     memset(screenPixels, 255, SCREEN_X * SCREEN_Y * sizeof(Uint32));
 }
-inline uint16_t color(uint8_t R, uint8_t G, uint8_t B){
-    return    (((R<<8) & 0b1111100000000000) |
-         ((G<<3) & 0b0000011111100000) |
-         ((B>>3) & 0b0000000000011111));
+inline uint32_t color(uint8_t R, uint8_t G, uint8_t B){
+    return ((R<<8*2) | (G<<8*1) | (B<<8*0));
 }
-void fillScreen(uint16_t color)
+
+void fillScreen(uint32_t color)
 {
     memset(screenPixels, (Uint32)color, SCREEN_X * SCREEN_Y * sizeof(Uint32));
 }
 //Draw a line (bresanham line algorithm)
-void line(int x1, int y1, int x2, int y2, uint16_t color){
+void line(int x1, int y1, int x2, int y2, uint32_t color){
 	int8_t ix, iy;
 
 	int dx = (x2>x1 ? (ix=1, x2-x1) : (ix=-1, x1-x2) );
@@ -79,6 +175,91 @@ void line(int x1, int y1, int x2, int y2, uint16_t color){
 		}
 	}
 }
+void vline(int x, int y1, int y2, uint32_t color){ //vertical line needed for triangle()
+	if (y1>y2) { int z=y2; y2=y1; y1=z;}
+	for (int y=y1; y<=y2; y++)
+		setPixel(x,y,color);
+}
+
+//Draw a filled triangle.
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colorFill, uint32_t colorLine){
+//Filled triangles are a lot of vertical lines.
+/*                                                               -
+                        a   ___________----------P3              -
+       P0 _________---------              ____---                -
+          ---____               _____-----                       -
+               b ----___  _-----   c                             -
+                        P2                                       -
+The triangle has three points P0, P1 and P2 and three lines a, b and c. We go from left to right, calculating the point on a and the point on b or c and then we draw a vertical line connecting these two.
+*/
+
+	//Sort the points by x coordinate
+	{
+		int z;
+		if(x0>x2){ z=x2; x2=x0; x0=z; z=y2; y2=y0; y0=z; }
+		if(x1>x2){ z=x2; x2=x1; x1=z; z=y2; y2=y1; y1=z; }
+		if(x0>x1){ z=x1; x1=x0; x0=z; z=y1; y1=y0; y0=z; }
+	}
+
+	int x = x0; //x is the variable that counts from left to right
+
+	//Values for line a
+	int ay = y0; //The point y for the current x on the line a
+	int aiy; //The direction of line a
+	int adx = (x2>x0 ? (       x2-x0) : (        x0-x2) );
+	int ady = (y2>y0 ? (aiy=1, y2-y0) : (aiy=-1, y0-y2) );
+	int aerr = 0; //The y value of a (fractional part). y is actually ay+(aerr/adx)
+
+	//Values for line b
+	int by = y0; //The point y for the current x on the line b
+	int biy; //The direction of line b
+	int bdx = (x1>x0 ? (       x1-x0) : (        x0-x1) );
+	int bdy = (y1>y0 ? (biy=1, y1-y0) : (biy=-1, y0-y1) );
+	int berr = 0;
+
+	//Values for line c
+	int cy = y1; //The point y for the current x on the line y (starting at P1)
+	int ciy; //The direction of line c
+	int cdx = (x2>x1 ? (       x2-x1) : (        x1-x2) );
+	int cdy = (y2>y1 ? (ciy=1, y2-y1) : (ciy=-1, y1-y2) );
+	int cerr = 0;
+
+	//First draw area between a and b
+	while (x<x1){
+		x++;
+		aerr+=ady;
+		while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
+			aerr-=adx;
+			ay+=aiy;
+		}
+		berr+=bdy;
+		while(berr>=bdx >> 2){ //if berr/bdx >= 0.5
+			berr-=bdx;
+			by+=biy;
+		}
+		vline(x,ay,by,colorFill);
+	}
+
+	//Then draw area between a and c
+	while (x<x2-1){ //we don't need x=x2, bacause x should already have the right vaue...
+		x++;
+		aerr+=ady;
+		while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
+			aerr-=adx;
+			ay+=aiy;
+		}
+		cerr+=cdy;
+		while(cerr>=cdx >> 2){ //if berr/bdx >= 0.5
+			cerr-=cdx;
+			cy+=ciy;
+		}
+		vline(x,ay,cy,colorFill);
+	}
+
+	line(x0,y0,x1,y1,colorLine);
+	line(x1,y1,x2,y2,colorLine);
+	line(x2,y2,x0,y0,colorLine);
+}
 #endif
 
 void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t color)
@@ -92,14 +273,27 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     }
 }
 
-
 #ifndef PC
 extern "C" void main()
 {
     calcInit(); //backup screen and init some variables
+    if (DEBUG_TEST()){
+        while(true){
+            uint32_t k1,k2; getKey(&k1,&k2);
+            if(testKey(k1,k2,KEY_CLEAR)) {
+                break;
+            }
+        }
+        calcEnd(); //restore screen and do stuff
+        return;
+    }
 #else
 int main(int argc, const char * argv[])
 {
+    if (DEBUG_TEST()){
+        return 0;
+    }
+
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
     {
         return -1;
@@ -144,27 +338,7 @@ int main(int argc, const char * argv[])
 
 #endif
 
-    fix16_vec3 cube_vertices[] = {
-        // Lower 4 vertices
-        {-1.0f, -1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
-        {-1.0f,  1.0f, -1.0f}, {1.0f,  1.0f, -1.0f},
-
-        // Higher 4 vertices
-        {-1.0f, -1.0f,  1.0f}, {1.0f, -1.0f,  1.0f},
-        {-1.0f,  1.0f,  1.0f}, {1.0f,  1.0f,  1.0f}
-    };
-    u_pair cube_edges[] = {
-        {0,1}, {0,2}, {1,3}, {2,3},
-        {0+4,1+4}, {0+4,2+4}, {1+4,3+4}, {2+4,3+4},
-        {0,4}, {1,5}, {2,6}, {3,7}
-    };
-    Model cube1(
-        &(cube_vertices[0]),(sizeof(cube_vertices) / sizeof(cube_vertices[0])),
-        &(cube_edges[0]),   (sizeof(cube_edges) / sizeof(cube_edges[0]))
-    );
-    cube1.getPosition_ref().y -= 6.0f;
-
-
+/*
 #ifdef PC
     //char model_path[] = "./hi.obj";
     //char model_path[] = "./test.obj";
@@ -172,6 +346,13 @@ int main(int argc, const char * argv[])
 #else
     char model_path[] = "\\fls0\\suzanne.obj";
     //char model_path[] = "\\fls0\\hi.obj";
+#endif
+*/
+    char model_path[] =
+#ifdef PC
+        "./processed_comp.PCObj";
+#else
+        "\\fls0\\processed_calc.PCObj";
 #endif
 
     fillScreen(color(255,255,255));
@@ -187,103 +368,11 @@ int main(int argc, const char * argv[])
 #endif
     Model model_test = Model(model_path);
 
-
     // Example: reading 256 bytes from a file called @c test.txt from the USB flash
     //int fd = open("\\\\fls0\\test.txt", OPEN_READ);
     //char buf[256] = "6.0\0";
     //int ret = read(fd, buf, sizeof(buf));
     //ret = close(fd);
-
-
-    // ----
-    fix16_vec3 test_vertices[] = {
-
-        {0.0f,   0.0f,   0.0f}, // Padding since numbering starts from 1 (LATER REMOVE THIS!)
-
-        {-2.160963f,   0.631728f,   -0.317909f},
-        {-2.160963f,   4.239110f,   -0.317909f},
-        {-2.160963f,   0.631728f,   0.317909f},
-        {-2.160963f,   4.239110f,   0.317909f},
-        {-0.022835f,   0.631728f,   -0.317909f},
-        {-0.022835f,   0.631728f,   0.317909f},
-        {-0.022835f,   4.239110f,   -0.317909f},
-        {-0.022835f,   4.239110f,   0.317909f},
-        {1.789928f,    4.239110f,   -0.317909f},
-        {1.789928f,    4.239110f,   0.317909f},
-        {1.789928f,    -4.239110f,  -0.317909f},
-        {1.789928f,    -4.239110f,  0.317909f},
-        {-0.022835f,   -4.239110f,  -0.317909f},
-        {-0.022835f,   -4.239110f,  0.317909f},
-        {-0.022835f,   -0.904996f,  -0.317909f},
-        {-0.022835f,   -0.904996f,  0.317909f},
-        {-2.160963f,   -0.904996f,  -0.317909f},
-        {-2.160963f,   -0.904996f,  0.317909f},
-        {-2.160963f,   -4.239110f,  -0.317909f},
-        {-2.160963f,   -4.239110f,  0.317909f},
-        {-3.973727f,   -4.239110f,  -0.317909f},
-        {-3.973727f,   -4.239110f,  0.317909f},
-        {-3.973727f,   4.239110f,   -0.317909f},
-        {-3.973727f,   4.239110f,   0.317909f},
-        {3.973727f, -4.239110f, -0.317909f},
-        {3.973727f, 0.737936f, -0.317909f},
-        {3.973727f, -4.239110f, 0.317909f},
-        {3.973727f, 0.737936f, 0.317909f},
-        {2.562321f, -4.239110f, -0.317909f},
-        {2.562321f, -4.239110f, 0.317909f},
-        {2.562321f, 0.737936f, -0.317909f},
-        {2.562321f, 0.737936f, 0.317909f},
-        {2.562321f, 2.352888f, -0.317909f},
-        {2.562321f, 1.204561f, -0.317909f},
-        {2.562321f, 2.352888f, 0.317909f},
-        {2.562321f, 1.204561f, 0.317909f},
-        {3.973727f, 2.352888f, -0.317909f},
-        {3.973727f, 2.352888f, 0.317909f},
-        {3.973727f, 1.204561f, -0.317909f},
-        {3.973727f, 1.204561f, 0.317909f},
-    };
-    u_pair test_edges[] = {
-{1, 2},{6, 1},{3, 16},{6, 16},
-{6, 12},{10, 8},{8, 5},{7, 5},
-{7, 9},{5, 9},{15, 5},{15, 11},
-{15, 13},{18, 15},{17, 15},{20, 17},
-{18, 22},{22, 19},{21, 19},{24, 21},
-{3, 24},{4, 24},{4, 23},{2, 23},
-{23, 21},{23, 1},{21, 1},{1, 5},
-{21, 17},{3, 22},{19, 17},{16, 13},
-{13, 11},{14, 11},{17, 5},{11, 9},
-{9, 7},{10, 7},{12, 9},{16, 14},
-{18, 16},{5, 1},{3, 2},{2, 1},
-{2, 3},{1, 3},{16, 6},{16, 12},
-{12, 10},{8, 6},{5, 6},{5, 8},
-{9, 5},{9, 11},{5, 11},{11, 13},
-{13, 16},{15, 16},{15, 18},{17, 18},
-{22, 20},{19, 20},{19, 22},{21, 22},
-{24, 22},{24, 3},{23, 24},{23, 4},
-{21, 24},{1, 21},{1, 17},{5, 17},{17, 19},{22, 18},{17, 20},
-{13, 14},{11, 14},{11, 12},{5, 15},{9, 12},{7, 10},{7, 8},
-{9, 10},{14, 12},{16, 3},{1, 6},{2, 4},{1, 23}, {1, 3},
-{6, 3},{3, 6},{6, 12},{6, 10},{10, 6},{8, 6},{7, 8},
-{7, 5},{5, 11},{15, 11},{15, 13},{15, 16},{18, 16},{17, 18},
-{20, 18},{18, 20},{22, 20},{21, 22},{24, 22},{3, 22},{4, 3},
-{4, 24},{2, 4},{23, 24},{23, 21},{21, 17},{1, 17},{21, 19},
-{3, 18},{19, 20},{16, 14},{13, 14},{14, 12},{17, 15},{11, 12},
-{9, 10},{10, 8},{12, 10},{16, 12},{18, 3},{5, 6},{3, 4},{2, 23},
-{25, 26},{30, 25},{27, 32},{32, 29},{31, 29},{28, 31},{26, 31},
-{31, 26},{28, 32},{29, 25},{27, 26},{29, 26},{33, 34},{38, 33},
-{35, 40},{40, 37},{39, 37},{36, 39},{34, 39},{39, 34},{36, 40},
-{37, 33},{35, 34},{37, 34},{25, 27},{30, 27},{27, 30},{32, 30},
-{31, 32},{28, 32},{26, 28},{31, 29},{28, 27},{29, 30},{27, 28},
-{29, 25},{33, 35},{38, 35},{35, 38},{40, 38},{39, 40},{36, 40},
-{34, 36},{39, 37},{36, 35},{37, 38},{35, 36},{37, 33},{26, 27},
-{25, 27},{32, 30},{29, 30},{29, 32},{31, 32},{31, 28},{26, 29},
-{32, 27},{25, 30},{26, 28},{26, 25},{34, 35},{33, 35},{40, 38},
-{37, 38},{37, 40},{39, 40},{39, 36},{34, 37},{40, 35},{33, 38},
-{34, 36},{34, 33}
-    };
-    Model testmodel(
-        &(test_vertices[0]),(sizeof(test_vertices) / sizeof(test_vertices[0])),
-        &(test_edges[0]),   (sizeof(test_edges) / sizeof(test_edges[0]))
-    );
 
     Model* all_models[] = {
         // &cube1, &testmodel, &model_test
@@ -475,14 +564,46 @@ int main(int argc, const char * argv[])
                 //draw_center_square(x, y, 4,4, color(255,0,0));
                 //setPixel(x, y, color(0,0,0));
             }
-            // Draw edges of the cube
-            for(unsigned e_id=0; e_id<all_models[m_id]->edge_count; e_id++){
-                line((int16_t)(screen_coords[all_models[m_id]->edges[e_id].First].x),
-                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].First].y),
-                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].Second].x),
-                     (int16_t)(screen_coords[all_models[m_id]->edges[e_id].Second].y),
+            /*
+            */
+
+            // Draw face edges
+            for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+            {
+                triangle(
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
+                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
+                    color(
+                        155+(f_id*1)%100,
+                        200,
+                        97
+                    ),
                     color(0,0,0)
                 );
+                /*
+                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
+                    color(0,0,0)
+                );
+                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
+                    color(0,0,0)
+                );
+                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
+                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
+                    color(0,0,0)
+                );
+                */
             }
             free(screen_coords);
         }

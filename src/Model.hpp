@@ -8,6 +8,12 @@ struct u_pair {
     unsigned Second;
 };
 
+struct u_triple {
+    unsigned First;
+    unsigned Second;
+    unsigned Third;
+};
+
 class Model
 {
 private:
@@ -16,9 +22,9 @@ private:
 public:
     Model(
         fix16_vec3* vertices,
-        unsigned vertex_count,
-        u_pair* edges,
-        unsigned edge_count
+        unsigned    vertex_count,
+        u_triple*   faces,
+        unsigned    faces_count
     );
     Model(char* fname);
     ~Model();
@@ -29,14 +35,16 @@ public:
 
     fix16_vec3* vertices;
     unsigned    vertex_count;
-    u_pair*     edges;
-    unsigned    edge_count;
+    u_triple*   faces;
+    unsigned    faces_count;
 
     fix16_vec3& getPosition_ref();
     fix16_vec2& getRotation_ref();
     fix16_vec3& getScale_ref();
 
-    bool load_from_file(char* fname);
-
+    // SUPER slow
+    bool load_from_raw_obj_file(char* fname);
+    // Way faster (Run obj through python script to generate binary format)
+    bool load_from_binary_obj_file(char* fname);
 
 };
