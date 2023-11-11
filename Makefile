@@ -1,5 +1,5 @@
 # Built binary name
-APP_NAME := App_3d_render
+APP_NAME := App_sw_3d
 
 ifndef SDK_DIR
 $(error You need to define the SDK_DIR environment variable, and point it to the sdk/ folder)

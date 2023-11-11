@@ -23,7 +23,7 @@
 #   include <fcntl.h>   // File open & close
 #endif
 
-
+#define FILL_SCREEN_COLOR color(130,130,130)
 
 
 
@@ -97,7 +97,7 @@ bool DEBUG_TEST()
             << faces[i].Third << std::endl;
     }
 #else
-    fillScreen(color(255,255,255));
+    fillScreen(FILL_SCREEN_COLOR);
     Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", rd_bytes);
     Debug_Printf(1,2, false, 0, "vert_count: 0x%x", vert_count );
     Debug_Printf(1,3, false, 0, "face_count: 0x%x", face_count );
@@ -137,8 +137,13 @@ inline uint32_t color(uint8_t R, uint8_t G, uint8_t B){
 
 void fillScreen(uint32_t color)
 {
-    memset(screenPixels, (Uint32)color, SCREEN_X * SCREEN_Y * sizeof(Uint32));
+    for (int x=0; x<SCREEN_X; x++){
+        for (int y=0; y<SCREEN_Y; y++){
+            setPixel(x,y,color);
+        }
+    }
 }
+
 //Draw a line (bresanham line algorithm)
 void line(int x1, int y1, int x2, int y2, uint32_t color){
 	int8_t ix, iy;
@@ -273,6 +278,20 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     }
 }
 
+template <class T>
+inline void swap(T& a, T& b) {
+    T tmp = b;
+    b = a;
+    a = tmp;
+}
+
+void bubble_sort(uint_fix16_t a[], int n) {
+    for (int j = n; j > 1; --j)
+        for (int i = 1; i < j; ++i)
+            if (a[i - 1].fix16 < a[i].fix16)
+                swap(a[i - 1], a[i]);
+}
+
 #ifndef PC
 extern "C" void main()
 {
@@ -355,7 +374,7 @@ int main(int argc, const char * argv[])
         "\\fls0\\processed_calc.PCObj";
 #endif
 
-    fillScreen(color(255,255,255));
+    fillScreen(FILL_SCREEN_COLOR);
 #ifndef PC
     Debug_SetCursorPosition(1,1);
     Debug_PrintString("Load obj", false);
@@ -366,15 +385,33 @@ int main(int argc, const char * argv[])
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 #endif
-    Model model_test = Model(model_path);
 
-    // Example: reading 256 bytes from a file called @c test.txt from the USB flash
-    //int fd = open("\\\\fls0\\test.txt", OPEN_READ);
-    //char buf[256] = "6.0\0";
-    //int ret = read(fd, buf, sizeof(buf));
-    //ret = close(fd);
+    #define FLOOR_SIZE   2.5f
+    #define FLOOR_HEIGHT 6.5f
+    fix16_vec3 vertices[] = {
+        {-FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
+        {-FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
+        { FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
+        { FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
+    };
+    unsigned vertex_count = sizeof(vertices)/sizeof(vertices[0]);
+    u_triple faces[] = {
+        {0,1,2},
+        {3,1,2},
+    };
+    unsigned faces_count  = sizeof(faces)/sizeof(faces[0]);
+    Model model_floor = Model(
+        vertices,
+        vertex_count,
+        faces,
+        faces_count
+    );
+
+    Model model_test  = Model(model_path);
+    model_test.getRotation_ref().y = Fix16(3.145f/2.0f);
 
     Model* all_models[] = {
+        &model_floor,
         // &cube1, &testmodel, &model_test
         &model_test
     };
@@ -385,12 +422,10 @@ int main(int argc, const char * argv[])
 
     Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
 
-    Fix16 fix_val1 = 0.0f;
-
     bool done = false;
     while(!done)
     {
-        fillScreen(color(255,255,255));
+        fillScreen(FILL_SCREEN_COLOR);
         // --------------------------
 
 
@@ -403,23 +438,23 @@ int main(int argc, const char * argv[])
 
         if(testKey(k1,k2,KEY_4))  {
             //camera_pos.x -= 0.1f;
-            camera_pos.z += camera_rot.x.sin()*0.1f;
-            camera_pos.x -= camera_rot.x.cos()*0.1f;
+            camera_pos.z += camera_rot.x.sin()*0.20f;
+            camera_pos.x -= camera_rot.x.cos()*0.20f;
         }
         if(testKey(k1,k2,KEY_6)) {
             //camera_pos.x += 0.1f;
-            camera_pos.z -= camera_rot.x.sin()*0.1f;
-            camera_pos.x += camera_rot.x.cos()*0.1f;
+            camera_pos.z -= camera_rot.x.sin()*0.20f;
+            camera_pos.x += camera_rot.x.cos()*0.20f;
         }
         if(testKey(k1,k2,KEY_8))    {
             //camera_pos.z += 0.1f;
-            camera_pos.x += camera_rot.x.sin()*0.1f;
-            camera_pos.z += camera_rot.x.cos()*0.1f;
+            camera_pos.x += camera_rot.x.sin()*0.20f;
+            camera_pos.z += camera_rot.x.cos()*0.20f;
         }
         if(testKey(k1,k2,KEY_2))  {
             //camera_pos.z -= 0.1f;
-            camera_pos.x -= camera_rot.x.sin()*0.1f;
-            camera_pos.z -= camera_rot.x.cos()*0.1f;
+            camera_pos.x -= camera_rot.x.sin()*0.20f;
+            camera_pos.z -= camera_rot.x.cos()*0.20f;
         }
         if(testKey(k1,k2,KEY_9))     {
             camera_pos.y -= 0.1f;
@@ -465,6 +500,10 @@ int main(int argc, const char * argv[])
                         case SDLK_s:     key_s     = true; break;
                         case SDLK_1:     key_1     = true; break;
                         case SDLK_2:     key_2     = true; break;
+                        // STOP
+                        case SDLK_ESCAPE:
+                            done = true;
+                            break;
                         default:                           break;
                     }
                     break;
@@ -494,20 +533,20 @@ int main(int argc, const char * argv[])
         }
 
         if (key_left){
-            camera_pos.z += camera_rot.x.sin()*0.006f;
-            camera_pos.x -= camera_rot.x.cos()*0.006f;
+            camera_pos.z += camera_rot.x.sin()*0.009f;
+            camera_pos.x -= camera_rot.x.cos()*0.009f;
         }
         if (key_right){
-            camera_pos.z -= camera_rot.x.sin()*0.006f;
-            camera_pos.x += camera_rot.x.cos()*0.006f;
+            camera_pos.z -= camera_rot.x.sin()*0.009f;
+            camera_pos.x += camera_rot.x.cos()*0.009f;
         }
         if (key_up){
-            camera_pos.x += camera_rot.x.sin()*0.006f;
-            camera_pos.z += camera_rot.x.cos()*0.006f;
+            camera_pos.x += camera_rot.x.sin()*0.009f;
+            camera_pos.z += camera_rot.x.cos()*0.009f;
         }
         if (key_down){
-            camera_pos.x -= camera_rot.x.sin()*0.006f;
-            camera_pos.z -= camera_rot.x.cos()*0.006f;
+            camera_pos.x -= camera_rot.x.sin()*0.009f;
+            camera_pos.z -= camera_rot.x.cos()*0.009f;
         }
         if (key_r){
             camera_pos.y -= 0.006f;
@@ -538,25 +577,33 @@ int main(int argc, const char * argv[])
 #endif
 
 // --------------------------------------------------
-        all_models[0]->getRotation_ref().x += 0.004f;
-        all_models[0]->getRotation_ref().y += 0.002f;
-        //all_models[0]->getScale_ref().x = fix_val1.sin() * 0.1f + 1.0f;
-
-        //testmodel.getRotation_ref().y += 0.03f;
-
-        fix_val1 += 0.03f;
-
+#ifdef PC
+        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
+        all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
+#else
+        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
+        all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
+#endif
         for (unsigned m_id=0; m_id<all_model_count; m_id++)
         {
             // For each model..
-            // Get screen coordinates (And visualize vertices)
-            fix16_vec2* screen_coords = (fix16_vec2*) malloc(sizeof(fix16_vec2) * all_models[m_id]->vertex_count);
+            // Allocate memory first:
+            //   1. Screen coordinates
+            int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+            //   2. Draw order list
+            Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
+            //   3. Face draw order (to be created)
+            //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
+            uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
+
+            // Get screen coordinates
             for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
                 auto screen_vec2 = getScreenCoordinate(
                     FOV, all_models[m_id]->vertices[v_id],
                     all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
                     all_models[m_id]->getScale_ref(),
-                    camera_pos, camera_rot
+                    camera_pos, camera_rot,
+                    &vert_z_depths[v_id]
                 );
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
@@ -564,23 +611,59 @@ int main(int argc, const char * argv[])
                 //draw_center_square(x, y, 4,4, color(255,0,0));
                 //setPixel(x, y, color(0,0,0));
             }
-            /*
-            */
 
-            // Draw face edges
+            // Init the face_draw_order
+            // -- CRUDE ORDERING (Work In Progress)
             for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
             {
+                // CRUDELY only choosing first vertex
+                unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
+                unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
+                unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
+                // Get face z-depth
+                Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+
+                // Init index = f_id
+                face_draw_order[f_id].uint = f_id;
+                face_draw_order[f_id].fix16 = f_z_depth;
+            }
+            // Sorting
+            bubble_sort(face_draw_order, all_models[m_id]->faces_count);
+
+            // Draw face edges
+            #define SHADE_MAX 255
+            #define SHADE_MIN 100
+            //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+            for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
+            {
+                auto f_id = face_draw_order[ordered_id].uint;
+                auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
+                auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
+                auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
+                auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
+                auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
+                auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( v0_x == fix16_cast_int_min ||
+                    v1_x == fix16_cast_int_min ||
+                    v2_x == fix16_cast_int_min
+                ){
+                    continue;
+                }
+                auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
+
+                uint32_t colorr =
+                    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
+
                 triangle(
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
-                    (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
+                    v0_x,v0_y,
+                    v1_x,v1_y,
+                    v2_x,v2_y,
                     color(
-                        155+(f_id*1)%100,
-                        200,
-                        97
+                        //SHADE_MIN+shade,0,SHADE_MAX-shade
+                        (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
                     ),
                     color(0,0,0)
                 );
@@ -605,6 +688,8 @@ int main(int argc, const char * argv[])
                 );
                 */
             }
+            free(face_draw_order);
+            free(vert_z_depths);
             free(screen_coords);
         }
 

@@ -2,6 +2,10 @@
 
 #include "constants.hpp"
 
+#ifdef PC
+#   include <iostream>
+#endif
+
 /*
 def rotateOnPlane(self,a,b,radians):
     sin = math.sin(radians)
@@ -28,7 +32,8 @@ void rotateOnPlane(
 fix16_vec2 getScreenCoordinate(
     Fix16 FOV, fix16_vec3 point,
     fix16_vec3 translate, fix16_vec2 rotation, fix16_vec3 scale,
-    fix16_vec3 camera_pos, fix16_vec2 camera_rot
+    fix16_vec3 camera_pos, fix16_vec2 camera_rot,
+    Fix16* z_depth_out
 ) {
     Fix16 sx, sy;
 
@@ -63,6 +68,10 @@ fix16_vec2 getScreenCoordinate(
     if z == 0:
         z = 0.0001
     */
+    // Output Z-Depth
+    *z_depth_out = temp.z;
+
+    // Make sure there is no division with zero
     if (temp.z == 0.0f){
         temp.z = 0.001f;
     }
@@ -80,6 +89,16 @@ fix16_vec2 getScreenCoordinate(
     if z>0 and x < self.width+ extra and x > -extra and y >-extra and y < self.height+extra:
         drawit = True
     */
+    //*should_draw_out = false;
+    if( sx < 0.0f || sx > (float)SCREEN_X
+        ||
+        sy < 0.0f || sy > (float)SCREEN_Y
+    ){
+        sx = fix16_minimum;
+        //sy = fix16_minimum;
+    }
+
+    //if z>0 and
     return fix16_vec2({sx, sy});
 }
 

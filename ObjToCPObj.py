@@ -13,6 +13,8 @@
 
 #model_path = "./suzanne.obj"
 model_path = "./pikatchu.obj"
+model_path = "./pikatchu_simple.obj"
+
 
 out_calculator = "./processed_calc.PCObj"
 out_computer   = "./processed_comp.PCObj"

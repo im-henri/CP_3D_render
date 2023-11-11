@@ -1,12 +1,14 @@
 #pragma once
 
 #ifdef PC
-#   define SCREEN_X 320*1
-#   define SCREEN_Y 528*1
+#   define _SCREEN_SIZE_MULTIPLIER 1
 #else
-#   define SCREEN_X 320
-#   define SCREEN_Y 528
+#   define _SCREEN_SIZE_MULTIPLIER 1
 #endif
+
+#define SCREEN_X 320*_SCREEN_SIZE_MULTIPLIER
+#define SCREEN_Y 528*_SCREEN_SIZE_MULTIPLIER
+
 
 #ifdef PC
 #   define UNIVERSIAL_FILE_READ O_RDONLY
