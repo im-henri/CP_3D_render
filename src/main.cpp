@@ -995,7 +995,6 @@ int main(int argc, const char * argv[])
                 //   2. Draw order list
                 Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
                 //   3. Face draw order (to be created)
-                //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
                 uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
 
                 // Get screen coordinates
@@ -1036,9 +1035,6 @@ int main(int argc, const char * argv[])
                 //shellSort(face_draw_order, all_models[m_id]->faces_count);
 
                 // Draw face edges
-                #define SHADE_MAX 255
-                #define SHADE_MIN 100
-                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
                 {
                     auto f_id = face_draw_order[ordered_id].uint;
@@ -1056,19 +1052,9 @@ int main(int argc, const char * argv[])
                         continue;
                     }
 
-                    //auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
-
-                    //uint32_t colorr =
-                    //    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
-
-                    //Point2d v0 = {v0_x,v0_y, gen_textureWidth*0,gen_textureHeight*1};
-                    //Point2d v1 = {v1_x,v1_y, gen_textureWidth*1,gen_textureHeight*1};
-                    //Point2d v2 = {v2_x,v2_y, gen_textureWidth*1,gen_textureHeight*0};
-
                     auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
                     auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
                     auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
-
 
                     auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
                     auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
@@ -1106,7 +1092,6 @@ int main(int argc, const char * argv[])
                 //   2. Draw order list
                 Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
                 //   3. Face draw order (to be created)
-                //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
                 uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
 
                 // Get screen coordinates
@@ -1122,8 +1107,6 @@ int main(int argc, const char * argv[])
                     int16_t x = (int16_t)screen_vec2.x;
                     int16_t y = (int16_t)screen_vec2.y;
                     screen_coords[v_id] = {x, y};
-                    //draw_center_square(x, y, 4,4, color(255,0,0));
-                    //setPixel(x, y, color(0,0,0));
                 }
 
                 // Init the face_draw_order
@@ -1147,9 +1130,6 @@ int main(int argc, const char * argv[])
                 bubble_sort(face_draw_order, all_models[m_id]->faces_count);
 
                 // Draw face edges
-                #define SHADE_MAX 255
-                #define SHADE_MIN 100
-                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
                 {
                     auto f_id = face_draw_order[ordered_id].uint;
@@ -1175,7 +1155,6 @@ int main(int argc, const char * argv[])
                         v1_x,v1_y,
                         v2_x,v2_y,
                         color(
-                            //SHADE_MIN+shade,0,SHADE_MAX-shade
                             (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
                         ),
                         color(0,0,0)
@@ -1210,7 +1189,6 @@ int main(int argc, const char * argv[])
                     screen_coords[v_id] = {x, y};
                 }
 
-                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 for (unsigned int f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
                     auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
@@ -1232,7 +1210,6 @@ int main(int argc, const char * argv[])
                         v1_x,v1_y,
                         v2_x,v2_y,
                         color(
-                            //SHADE_MIN+shade,0,SHADE_MAX-shade
                             255,(f_id*8)%255,(f_id*16)%255
                         ),
                         color(0,0,0)
@@ -1280,11 +1257,9 @@ int main(int argc, const char * argv[])
                     ){
                         continue;
                     }
-
                     line(v0_x,v0_y, v1_x, v1_y, color(0,0,0));
                     line(v1_x,v1_y, v2_x, v2_y, color(0,0,0));
                     line(v2_x,v2_y, v0_x, v0_y, color(0,0,0));
-
                 }
                 free(screen_coords);
             }
