@@ -3,6 +3,9 @@
 *.hhk
 *.bin
 
+# make PC binary
+pc_out
+
 # some temporary files under wsl
 *~
 .*~

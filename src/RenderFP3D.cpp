@@ -6,7 +6,7 @@
 #   include <iostream>
 #endif
 
-void rotateOnPlane(
+inline void rotateOnPlane(
     Fix16& a, Fix16& b,
     Fix16 radians
 ) {
@@ -63,12 +63,8 @@ fix16_vec2 getScreenCoordinate(
     sx = Fix16((int16_t) (SCREEN_X/2)) + (realx);
     sy = Fix16((int16_t) (SCREEN_Y/2)) + (realy);
 
-    /*
-    drawit = False
-    extra = 2000
-    if z>0 and x < self.width+ extra and x > -extra and y >-extra and y < self.height+extra:
-        drawit = True
-    */
+    // Some extra buffer around actual screen area, where we would still consider
+    // pixel to be "visible".
     auto extra = 200.0f;
     if( temp.z < 0.0f
         ||
@@ -80,7 +76,6 @@ fix16_vec2 getScreenCoordinate(
         //sy = fix16_minimum;
     }
 
-    //if z>0 and
     return fix16_vec2({sx, sy});
 }
 
