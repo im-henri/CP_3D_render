@@ -9,7 +9,7 @@
 
 #include "StringUtils.hpp"
 
-#include "gen_uv_tex.hpp"
+//#include "gen_uv_tex.hpp"
 
 #ifndef PC
     #include "app_description.hpp"
@@ -27,9 +27,9 @@
 
 #define FILL_SCREEN_COLOR color(190,190,190)
 
-extern const int gen_textureWidth;
-extern const int gen_textureHeight;
-extern uint32_t gen_uv_tex[gen_textureWidth*gen_textureHeight];
+//extern const int gen_textureWidth;
+//extern const int gen_textureHeight;
+//extern uint32_t gen_uv_tex[gen_textureWidth*gen_textureHeight];
 
 uint16_t *p_vram;  //The vram pointer
 
@@ -259,7 +259,7 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
                     (0xff & (texel>>8)),
                     (0xff & texel)
             );
-            setPixel(x0, y, c);
+            _Unsafe_setPixel(x0, y, c);
         }
         return;
     }
@@ -276,7 +276,7 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
                     (0xff & (texel>>8)),
                     (0xff & texel)
             );
-            setPixel(x, y, c);
+            _Unsafe_setPixel(x, y, c);
         }
     }
 }
@@ -343,118 +343,118 @@ bool DEBUG_TEST(
     // True  = RUN ONLY THIS TEST AND STOP AFTERWARDS
     // False = CONTINUE WITH NORMAL MAIN
 
-    const int16_t OFFSET = 160;
-    const int16_t SIZE = 150;
+//     const int16_t OFFSET = 160;
+//     const int16_t SIZE = 150;
 
-    /*
-                   v2
-                _ /|
-            _ /    |
-        _ /        |
-      /            |
-    v0 ------------ v1
-    texture png corners
-        (0,0)  (1,0)
+//     /*
+//                    v2
+//                 _ /|
+//             _ /    |
+//         _ /        |
+//       /            |
+//     v0 ------------ v1
+//     texture png corners
+//         (0,0)  (1,0)
 
-        (0,1)  (1,1)
-    */
+//         (0,1)  (1,1)
+//     */
 
-#define UPPER_HALF
-#ifdef LOWER_HALF
-    // Lower half
-    const float rot_offset = -0.8f;
-    Point2d v0 = {0,0,  gen_textureWidth*0,gen_textureHeight*1};
-    Point2d v1 = {0,0,  gen_textureWidth*1,gen_textureHeight*1};
-    Point2d v2 = {0,0,  gen_textureWidth*1,gen_textureHeight*0};
-#else
-    // Upper half
-    const float rot_offset = +2.35f;
-    Point2d v0 = {0,0,  gen_textureWidth * 1, gen_textureHeight * 0};
-    Point2d v1 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 0};
-    Point2d v2 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 1};
-#endif
+// #define UPPER_HALF
+// #ifdef LOWER_HALF
+//     // Lower half
+//     const float rot_offset = -0.8f;
+//     Point2d v0 = {0,0,  gen_textureWidth*0,gen_textureHeight*1};
+//     Point2d v1 = {0,0,  gen_textureWidth*1,gen_textureHeight*1};
+//     Point2d v2 = {0,0,  gen_textureWidth*1,gen_textureHeight*0};
+// #else
+//     // Upper half
+//     const float rot_offset = +2.35f;
+//     Point2d v0 = {0,0,  gen_textureWidth * 1, gen_textureHeight * 0};
+//     Point2d v1 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 0};
+//     Point2d v2 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 1};
+// #endif
 
-#ifdef PC
-    std::cout << "rd_bytes:   0x" << std::hex << 123 << std::endl;
-#else
-    Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", 123);
-#endif
+// #ifdef PC
+//     std::cout << "rd_bytes:   0x" << std::hex << 123 << std::endl;
+// #else
+//     Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", 123);
+// #endif
 
-    Fix16 rad1 = Fix16(0.0f+rot_offset);
-    Fix16 rad2 = Fix16(1.57f+rot_offset);
-    Fix16 rad3 = Fix16(3.14f+rot_offset);
+//     Fix16 rad1 = Fix16(0.0f+rot_offset);
+//     Fix16 rad2 = Fix16(1.57f+rot_offset);
+//     Fix16 rad3 = Fix16(3.14f+rot_offset);
 
-#ifdef PC
-    SDL_Event event;
-#endif
-    bool done = false;
-    while (!done)
-    {
-#ifdef PC
-        rad1 += 0.0011f;
-        rad2 += 0.0011f;
-        rad3 += 0.0011f;
-#else
-        rad1 += 0.0011f*29.0f;
-        rad2 += 0.0011f*29.0f;
-        rad3 += 0.0011f*29.0f;
-#endif
-        Fix16 v0_x = rad1.sin() * (float) SIZE;
-        Fix16 v0_y = rad1.cos() * (float) SIZE;
-        Fix16 v1_x = rad2.sin() * (float) SIZE;
-        Fix16 v1_y = rad2.cos() * (float) SIZE;
-        Fix16 v2_x = rad3.sin() * (float) SIZE;
-        Fix16 v2_y = rad3.cos() * (float) SIZE;
+// #ifdef PC
+//     SDL_Event event;
+// #endif
+//     bool done = false;
+//     while (!done)
+//     {
+// #ifdef PC
+//         rad1 += 0.0011f;
+//         rad2 += 0.0011f;
+//         rad3 += 0.0011f;
+// #else
+//         rad1 += 0.0011f*29.0f;
+//         rad2 += 0.0011f*29.0f;
+//         rad3 += 0.0011f*29.0f;
+// #endif
+//         Fix16 v0_x = rad1.sin() * (float) SIZE;
+//         Fix16 v0_y = rad1.cos() * (float) SIZE;
+//         Fix16 v1_x = rad2.sin() * (float) SIZE;
+//         Fix16 v1_y = rad2.cos() * (float) SIZE;
+//         Fix16 v2_x = rad3.sin() * (float) SIZE;
+//         Fix16 v2_y = rad3.cos() * (float) SIZE;
 
-        v0.x = (int16_t) v0_x + OFFSET;
-        v0.y = (int16_t) v0_y + OFFSET;
-        v1.x = (int16_t) v1_x + OFFSET;
-        v1.y = (int16_t) v1_y + OFFSET;
-        v2.x = (int16_t) v2_x + OFFSET;
-        v2.y = (int16_t) v2_y + OFFSET;
+//         v0.x = (int16_t) v0_x + OFFSET;
+//         v0.y = (int16_t) v0_y + OFFSET;
+//         v1.x = (int16_t) v1_x + OFFSET;
+//         v1.y = (int16_t) v1_y + OFFSET;
+//         v2.x = (int16_t) v2_x + OFFSET;
+//         v2.y = (int16_t) v2_y + OFFSET;
 
-        fillScreen(FILL_SCREEN_COLOR);
-#ifdef PC
-        drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
+//         fillScreen(FILL_SCREEN_COLOR);
+// #ifdef PC
+//         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
 
-        SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+//         SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
+//         SDL_RenderClear(renderer);
+//         SDL_RenderCopy(renderer, texture, NULL, NULL);
+//         SDL_RenderPresent(renderer);
 
-        SDL_PollEvent(&event);
-        switch( event.type ){
-            case SDL_KEYDOWN:
-                switch( event.key.keysym.sym ){
-                    case SDLK_ESCAPE:
-                        done = true;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            /* Keyboard event */
-            case SDL_QUIT:
-                done = true;
-                break;
-            default:
-                break;
-        }
-#else
-        drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
+//         SDL_PollEvent(&event);
+//         switch( event.type ){
+//             case SDL_KEYDOWN:
+//                 switch( event.key.keysym.sym ){
+//                     case SDLK_ESCAPE:
+//                         done = true;
+//                         break;
+//                     default:
+//                         break;
+//                 }
+//                 break;
+//             /* Keyboard event */
+//             case SDL_QUIT:
+//                 done = true;
+//                 break;
+//             default:
+//                 break;
+//         }
+// #else
+//         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
 
-        uint32_t k1,k2; getKey(&k1,&k2);
-        if(testKey(k1,k2,KEY_CLEAR)) {
-            done = true;
-        }
-        LCD_Refresh();
-#endif
+//         uint32_t k1,k2; getKey(&k1,&k2);
+//         if(testKey(k1,k2,KEY_CLEAR)) {
+//             done = true;
+//         }
+//         LCD_Refresh();
+// #endif
 
-    }
+//     }
 
-    return true;
-    // True  = EXIT
-    // False = CONTINUE
+//     return true;
+//     // True  = EXIT
+//     // False = CONTINUE
 }
 
 #ifndef PC
@@ -532,6 +532,13 @@ int main(int argc, const char * argv[])
         "\\fls0\\a_processed_calc.PCObj";
 #endif
 
+    char model_texture_path[] =
+#ifdef PC
+        "./a_processed_comp.texture";
+#else
+        "\\fls0\\a_processed_calc.texture";
+#endif
+
     fillScreen(FILL_SCREEN_COLOR);
 #ifndef PC
     Debug_SetCursorPosition(1,1);
@@ -567,15 +574,21 @@ int main(int argc, const char * argv[])
     // );
 
     // Test obj model
-    Model model_test  = Model(model_path);
+    Model model_test  = Model(model_path, model_texture_path);
     model_test.getRotation_ref().y = Fix16(3.145f/2.0f);
+
+
+    Model model_test2  = Model(model_path, model_texture_path);
+    model_test2.getRotation_ref().y = Fix16(3.145f/2.0f);
+    model_test.getPosition_ref().x += 10.0f;
 
     // -----------------
     // Models to render
     Model* all_models[] = {
         //&model_floor,
         // &cube1, &testmodel, &model_test
-        &model_test
+        &model_test,
+        &model_test2
     };
     const unsigned all_model_count = sizeof(all_models) / sizeof(all_models[0]);
 
@@ -583,10 +596,15 @@ int main(int argc, const char * argv[])
     fix16_vec2 camera_rot = {0.6f, 0.4f};
 
     Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
-
-
+#ifdef PC
+    float fps_smooth = 0.0f;
+#endif
     while(!done)
     {
+        #ifdef PC
+        uint64_t start = SDL_GetPerformanceCounter();
+        #endif
+
         fillScreen(FILL_SCREEN_COLOR);
         // --------------------------
 
@@ -762,7 +780,8 @@ int main(int argc, const char * argv[])
 
             // Get screen coordinates
             for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
-                auto screen_vec2 = getScreenCoordinate(
+                fix16_vec2 screen_vec2;
+                screen_vec2 = getScreenCoordinate(
                     FOV, all_models[m_id]->vertices[v_id],
                     all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
                     all_models[m_id]->getScale_ref(),
@@ -816,6 +835,7 @@ int main(int argc, const char * argv[])
                 ){
                     continue;
                 }
+
                 //auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
 
                 //uint32_t colorr =
@@ -829,14 +849,15 @@ int main(int argc, const char * argv[])
                 auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
                 auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
 
-                auto v0_u = (int16_t) (uv0_fix16_norm.x * (float) gen_textureWidth);
-                auto v0_v = (int16_t) (uv0_fix16_norm.y * (float) gen_textureHeight);
 
-                auto v1_u = (int16_t) (uv1_fix16_norm.x * (float) gen_textureWidth);
-                auto v1_v = (int16_t) (uv1_fix16_norm.y * (float) gen_textureHeight);
+                auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                auto v2_u = (int16_t) (uv2_fix16_norm.x * (float) gen_textureWidth);
-                auto v2_v = (int16_t) (uv2_fix16_norm.y * (float) gen_textureHeight);
+                auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+
+                auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
                 Point2d v0 = {v0_x,v0_y, v0_u, v0_v};
                 Point2d v1 = {v1_x,v1_y, v1_u, v1_v};
@@ -844,7 +865,10 @@ int main(int argc, const char * argv[])
 
                 drawTriangle(
                     v0, v1, v2,
-                    gen_uv_tex, gen_textureWidth, gen_textureHeight
+                    //gen_uv_tex, gen_textureWidth, gen_textureHeight
+                    all_models[m_id]->gen_uv_tex,
+                    all_models[m_id]->gen_textureWidth,
+                    all_models[m_id]->gen_textureHeight
                 );
 
                 /*
@@ -876,6 +900,15 @@ int main(int argc, const char * argv[])
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_RenderPresent(renderer);
 #endif
+        #ifdef PC
+            uint64_t end = SDL_GetPerformanceCounter();
+            float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
+            float fps_raw = (1.0f/elapsed);
+            float alpha_fps = 0.1f; // "percentage"
+            fps_smooth = (fps_raw*alpha_fps + fps_smooth*(100.0f-alpha_fps))/100.0f;
+
+            std::cout << "Average FPS: " << fps_smooth << std::endl;
+        #endif
     }
 
 #ifndef PC

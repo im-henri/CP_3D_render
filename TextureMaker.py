@@ -1,4 +1,6 @@
 
+out_calculator = "./a_processed_calc.texture"
+out_computer   = "./a_processed_comp.texture"
 
 def init_table1(size, initUpper=True, initLower=True):
     table = [[0 for i in range(size)] for j in range(size)]
@@ -51,7 +53,7 @@ def init_table2(size, q0, q1, q2, q3):
 def png_to_hextable():
     from PIL import Image
 
-    im = Image.open('pika_clown3_64.png') # Can be many different formats.
+    im = Image.open('pika_clown3_1024.png') # Can be many different formats.
     png = im.load()
     png_array = []
     for y in range(im.size[1]):
@@ -77,6 +79,23 @@ def main():
 
     #textureSize = 30
     #texture = init_table2(textureSize, "0xff0000", "0x000000", "0x0000ff", "0x00ff00")
+
+    # Computer (my processor wants big-endian format)
+    fPC = open(out_calculator, "wb")
+    # Classpad wants little-endian
+    fCP = open(out_computer, "wb")
+    def write_out_32b(value):
+        fPC.write(value.to_bytes(4, 'big'))
+        fCP.write(value.to_bytes(4, 'little'))
+    # Write info about length of our data
+    write_out_32b(size_x)
+    write_out_32b(size_y)
+    # Write vertices in uint32 format
+    for row in texture:
+        for pix in row:
+            write_out_32b( int(pix, base=16) )
+    fPC.close()
+    fCP.close()
 
     with open("src/gen_uv_tex.hpp", "w") as f:
         f.write(f"#pragma once\n\n")
