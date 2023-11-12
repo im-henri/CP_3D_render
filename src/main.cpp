@@ -201,6 +201,21 @@ The triangle has three points P0, P1 and P2 and three lines a, b and c. We go fr
 }
 #endif
 
+fix16_vec3 crossProduct(const fix16_vec3& a, const fix16_vec3& b) {
+    fix16_vec3 result;
+    result.x = a.y * b.z - a.z * b.y;
+    result.y = a.z * b.x - a.x * b.z;
+    result.z = a.x * b.y - a.y * b.x;
+    return result;
+}
+
+fix16_vec3 calculateNormal(const fix16_vec3& v0, const fix16_vec3& v1, const fix16_vec3& v2) {
+    fix16_vec3 edge1 = {v1.x - v0.x, v1.y - v0.y, v1.z - v0.z};
+    fix16_vec3 edge2 = {v2.x - v0.x, v2.y - v0.y, v2.z - v0.z};
+
+    return crossProduct(edge1, edge2);
+}
+
 void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t color)
 {
     for(int16_t i=-sx/2; i<sx/2; i++)
@@ -897,7 +912,7 @@ int main(int argc, const char * argv[])
                             if(RENDER_MODE > 0)
                                 RENDER_MODE = RENDER_MODE - 1;
                             else
-                                RENDER_MODE = RENDER_MODE_COUNT - 1;;
+                                RENDER_MODE = RENDER_MODE_COUNT - 1;
                             break;
                         // STOP
                         case SDLK_ESCAPE:
@@ -1038,20 +1053,16 @@ int main(int argc, const char * argv[])
                 for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
                 {
                     auto f_id = face_draw_order[ordered_id].uint;
-                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
-                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
-                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
-                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
-                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
-                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
                     const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                    if( v0_x == fix16_cast_int_min ||
-                        v1_x == fix16_cast_int_min ||
-                        v2_x == fix16_cast_int_min
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
                     ){
                         continue;
                     }
-
                     auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
                     auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
                     auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
@@ -1065,12 +1076,12 @@ int main(int argc, const char * argv[])
                     auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
                     auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                    Point2d v0 = {v0_x,v0_y, v0_u, v0_v};
-                    Point2d v1 = {v1_x,v1_y, v1_u, v1_v};
-                    Point2d v2 = {v2_x,v2_y, v2_u, v2_v};
+                    Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
+                    Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
+                    Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
 
                     drawTriangle(
-                        v0, v1, v2,
+                        v0_screen, v1_screen, v2_screen,
                         //gen_uv_tex, gen_textureWidth, gen_textureHeight
                         all_models[m_id]->gen_uv_tex,
                         all_models[m_id]->gen_textureWidth,
@@ -1133,30 +1144,21 @@ int main(int argc, const char * argv[])
                 for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
                 {
                     auto f_id = face_draw_order[ordered_id].uint;
-                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
-                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
-                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
-                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
-                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
-                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
                     const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                    if( v0_x == fix16_cast_int_min ||
-                        v1_x == fix16_cast_int_min ||
-                        v2_x == fix16_cast_int_min
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
                     ){
                         continue;
                     }
-
                     uint32_t colorr =
-                        0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
-
+                        0xff << (ordered_id*(24)/all_models[m_id]->faces_count);
                     triangle(
-                        v0_x,v0_y,
-                        v1_x,v1_y,
-                        v2_x,v2_y,
-                        color(
-                            (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
-                        ),
+                        v0.x,v0.y,v1.x,v1.y,v2.x,v2.y,
+                        color((colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf),
                         color(0,0,0)
                     );
                 }
@@ -1191,27 +1193,19 @@ int main(int argc, const char * argv[])
 
                 for (unsigned int f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
-                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
-                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
-                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
-                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
-                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
-                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
                     const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                    if( v0_x == fix16_cast_int_min ||
-                        v1_x == fix16_cast_int_min ||
-                        v2_x == fix16_cast_int_min
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
                     ){
                         continue;
                     }
-
                     triangle(
-                        v0_x,v0_y,
-                        v1_x,v1_y,
-                        v2_x,v2_y,
-                        color(
-                            255,(f_id*8)%255,(f_id*16)%255
-                        ),
+                        v0.x,v0.y, v1.x,v1.y, v2.x,v2.y,
+                        color( 255,(f_id*8)%255,(f_id*16)%255 ),
                         color(0,0,0)
                     );
                 }
@@ -1244,22 +1238,19 @@ int main(int argc, const char * argv[])
 
                 for (unsigned int f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
-                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
-                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
-                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
-                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
-                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
-                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
                     const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                    if( v0_x == fix16_cast_int_min ||
-                        v1_x == fix16_cast_int_min ||
-                        v2_x == fix16_cast_int_min
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
                     ){
                         continue;
                     }
-                    line(v0_x,v0_y, v1_x, v1_y, color(0,0,0));
-                    line(v1_x,v1_y, v2_x, v2_y, color(0,0,0));
-                    line(v2_x,v2_y, v0_x, v0_y, color(0,0,0));
+                    line(v0.x,v0.y, v1.x, v1.y, color(0,0,0));
+                    line(v1.x,v1.y, v2.x, v2.y, color(0,0,0));
+                    line(v2.x,v2.y, v0.x, v0.y, color(0,0,0));
                 }
                 free(screen_coords);
             }
