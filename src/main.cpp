@@ -18,6 +18,7 @@
     #include <sdk/os/debug.hpp>
     #include <sdk/os/mem.hpp>
     #include <sdk/os/file.hpp>
+    #include "fps_functions.hpp"
 #else
 #   include <SDL2/SDL.h>
 #   include <iostream>
@@ -474,6 +475,121 @@ extern "C" void main()
         return;
     }
 #else
+int drawCharacter(char character, int x, int y, Uint32* screenPixels) {
+    const int BITMAP_SIZE = 6;
+    const int SIZE_MULTIPLIER = 2;
+    const char* bitmapNumbers6x6[] = {
+        // 0
+        "011110"
+        "100001"
+        "100001"
+        "100001"
+        "100001"
+        "011110",
+
+        // 1
+        "001000"
+        "011000"
+        "001000"
+        "001000"
+        "001000"
+        "111111",
+
+        // 2
+        "011110"
+        "100001"
+        "000010"
+        "000100"
+        "001000"
+        "111111",
+
+        // 3
+        "011110"
+        "100001"
+        "000110"
+        "000001"
+        "100001"
+        "011110",
+
+        // 4
+        "000100"
+        "001100"
+        "010100"
+        "111111"
+        "000100"
+        "000100",
+
+        // 5
+        "111111"
+        "100000"
+        "111110"
+        "000001"
+        "100001"
+        "011110",
+
+        // 6
+        "011110"
+        "100001"
+        "100000"
+        "111110"
+        "100001"
+        "011110",
+
+        // 7
+        "111111"
+        "000001"
+        "000010"
+        "000100"
+        "001000"
+        "010000",
+
+        // 8
+        "011110"
+        "100001"
+        "011110"
+        "100001"
+        "100001"
+        "011110",
+
+        // 9
+        "011110"
+        "100001"
+        "100001"
+        "011111"
+        "000001"
+        "011110"
+    };
+    // Calculate the index in the bitmapFont array based on the ASCII value of the character
+    int index = static_cast<int>(character) - 48;
+    // Loop through the character's bitmap and draw pixels onto screenPixels
+    for (int i = 0; i < BITMAP_SIZE; i++) {
+        for (int j = 0; j < BITMAP_SIZE; j++) {
+            for (int k = 0; k < SIZE_MULTIPLIER; k++){
+                for (int l = 0; l < SIZE_MULTIPLIER; l++){
+                    // Set the corresponding pixel in screenPixels to a color value (e.g., white)
+                    if (bitmapNumbers6x6[index][j * BITMAP_SIZE + i] == '1'){
+                        setPixel(x+i*2+k, y+j*2+l, color(255,120,34));
+                    }
+                }
+            }
+        }
+    }
+    return BITMAP_SIZE*SIZE_MULTIPLIER;
+}
+
+void sdl_debug_uint32_t(uint32_t value, int x, int y) {
+    const char* str = std::to_string(value).c_str();
+    int currentX = x;
+    // Loop through each character in the string
+    for (int i = 0; str[i] != '\0'; ++i) {
+        char character = str[i];
+        // Draw the character at the current position
+        currentX += drawCharacter(character, currentX, y, screenPixels) + 1;
+        // Move to the next position
+        // currentX += FONT_WIDTH + 1; // Add some space between characters
+    }
+}
+
 int main(int argc, const char * argv[])
 {
     bool done = false;
@@ -502,8 +618,7 @@ int main(int argc, const char * argv[])
         return -1;
     }
 
-    SDL_Texture * texture = SDL_CreateTexture(renderer,
-    SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
+    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
     screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
 
     if (DEBUG_TEST(texture, renderer)){
@@ -591,12 +706,24 @@ int main(int argc, const char * argv[])
 
     Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
 #ifdef PC
-    float fps_smooth = 0.0f;
+    uint32_t startTime = SDL_GetTicks();
+    int frames = 0;
+    uint32_t last_fps = 0;
 #endif
+
+#ifndef PC
+    bool KEY_0_prev = false;
+#endif
+    const uint16_t RENDER_MODE_COUNT = 5;
+    uint16_t RENDER_MODE = RENDER_MODE_COUNT-1;
     while(!done)
     {
         #ifdef PC
-        uint64_t start = SDL_GetPerformanceCounter();
+        uint32_t start = SDL_GetTicks();
+        #endif
+
+        #ifndef PC
+        fps_update();
         #endif
 
         fillScreen(FILL_SCREEN_COLOR);
@@ -643,6 +770,17 @@ int main(int argc, const char * argv[])
         if(testKey(k1,k2,KEY_SUBTRACT)){
             FOV -= 1.0f;
         }
+        if(testKey(k1,k2,KEY_0)){
+            if(KEY_0_prev == false){
+                if(RENDER_MODE > 0)
+                    RENDER_MODE = RENDER_MODE - 1;
+                else
+                    RENDER_MODE = RENDER_MODE_COUNT - 1;
+            }
+            KEY_0_prev = true;
+        }else{
+            KEY_0_prev = false;
+        }
 
         if(testKey(k1,k2,KEY_LEFT))  camera_rot.x -= 0.1f;
         if(testKey(k1,k2,KEY_RIGHT)) camera_rot.x += 0.1f;
@@ -674,6 +812,12 @@ int main(int argc, const char * argv[])
                         case SDLK_s:     key_s     = true; break;
                         case SDLK_1:     key_1     = true; break;
                         case SDLK_2:     key_2     = true; break;
+                        case SDLK_e:
+                            if(RENDER_MODE > 0)
+                                RENDER_MODE = RENDER_MODE - 1;
+                            else
+                                RENDER_MODE = RENDER_MODE_COUNT - 1;;
+                            break;
                         // STOP
                         case SDLK_ESCAPE:
                             done = true;
@@ -760,149 +904,364 @@ int main(int argc, const char * argv[])
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
 #endif
 
-        for (unsigned m_id=0; m_id<all_model_count; m_id++)
-        {
-            // For each model..
-            // Allocate memory first:
-            //   1. Screen coordinates
-            int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
-            //   2. Draw order list
-            Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
-            //   3. Face draw order (to be created)
-            //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
-            uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
-
-            // Get screen coordinates
-            for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
-                fix16_vec2 screen_vec2;
-                screen_vec2 = getScreenCoordinate(
-                    FOV, all_models[m_id]->vertices[v_id],
-                    all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
-                    all_models[m_id]->getScale_ref(),
-                    camera_pos, camera_rot,
-                    &vert_z_depths[v_id]
-                );
-                int16_t x = (int16_t)screen_vec2.x;
-                int16_t y = (int16_t)screen_vec2.y;
-                screen_coords[v_id] = {x, y};
-                //draw_center_square(x, y, 4,4, color(255,0,0));
-                //_Unsafe_setPixel(x, y, color(0,0,0));
-            }
-
-            // Init the face_draw_order
-            // -- CRUDE ORDERING (Work In Progress)
-            for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+        if (RENDER_MODE == 0){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
-                // CRUDELY only choosing first vertex
-                unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
-                unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
-                unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
-                // Get face z-depth
-                Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
-                f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
-                f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
+                //   3. Face draw order (to be created)
+                //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
+                uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
 
-                // Init index = f_id
-                face_draw_order[f_id].uint = f_id;
-                face_draw_order[f_id].fix16 = f_z_depth;
-            }
-            // Sorting
-            bubble_sort(face_draw_order, all_models[m_id]->faces_count);
-
-            // Draw face edges
-            #define SHADE_MAX 255
-            #define SHADE_MIN 100
-            //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
-            for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
-            {
-                auto f_id = face_draw_order[ordered_id].uint;
-                auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
-                auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
-                auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
-                auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
-                auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
-                auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
-                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                if( v0_x == fix16_cast_int_min ||
-                    v1_x == fix16_cast_int_min ||
-                    v2_x == fix16_cast_int_min
-                ){
-                    continue;
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &vert_z_depths[v_id]
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                    //draw_center_square(x, y, 4,4, color(255,0,0));
+                    //_Unsafe_setPixel(x, y, color(0,0,0));
                 }
 
-                //auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
+                // Init the face_draw_order
+                // -- CRUDE ORDERING (Work In Progress)
+                for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    // CRUDELY only choosing first vertex
+                    unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
+                    unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
+                    unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
+                    // Get face z-depth
+                    Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
 
-                //uint32_t colorr =
-                //    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
+                    // Init index = f_id
+                    face_draw_order[f_id].uint = f_id;
+                    face_draw_order[f_id].fix16 = f_z_depth;
+                }
+                // Sorting
+                bubble_sort(face_draw_order, all_models[m_id]->faces_count);
 
-                //Point2d v0 = {v0_x,v0_y, gen_textureWidth*0,gen_textureHeight*1};
-                //Point2d v1 = {v1_x,v1_y, gen_textureWidth*1,gen_textureHeight*1};
-                //Point2d v2 = {v2_x,v2_y, gen_textureWidth*1,gen_textureHeight*0};
+                // Draw face edges
+                #define SHADE_MAX 255
+                #define SHADE_MIN 100
+                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
+                {
+                    auto f_id = face_draw_order[ordered_id].uint;
+                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
+                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
+                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
+                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
+                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
+                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0_x == fix16_cast_int_min ||
+                        v1_x == fix16_cast_int_min ||
+                        v2_x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
 
-                auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
-                auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
-                auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
+                    //auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
+
+                    //uint32_t colorr =
+                    //    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
+
+                    //Point2d v0 = {v0_x,v0_y, gen_textureWidth*0,gen_textureHeight*1};
+                    //Point2d v1 = {v1_x,v1_y, gen_textureWidth*1,gen_textureHeight*1};
+                    //Point2d v2 = {v2_x,v2_y, gen_textureWidth*1,gen_textureHeight*0};
+
+                    auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
+                    auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
+                    auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
 
 
-                auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
-                auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+                    auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
-                auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+                    auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
-                auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+                    auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                Point2d v0 = {v0_x,v0_y, v0_u, v0_v};
-                Point2d v1 = {v1_x,v1_y, v1_u, v1_v};
-                Point2d v2 = {v2_x,v2_y, v2_u, v2_v};
+                    Point2d v0 = {v0_x,v0_y, v0_u, v0_v};
+                    Point2d v1 = {v1_x,v1_y, v1_u, v1_v};
+                    Point2d v2 = {v2_x,v2_y, v2_u, v2_v};
 
-                drawTriangle(
-                    v0, v1, v2,
-                    //gen_uv_tex, gen_textureWidth, gen_textureHeight
-                    all_models[m_id]->gen_uv_tex,
-                    all_models[m_id]->gen_textureWidth,
-                    all_models[m_id]->gen_textureHeight
-                );
-
-                /*
-                triangle(
-                    v0_x,v0_y,
-                    v1_x,v1_y,
-                    v2_x,v2_y,
-                    color(
-                        //SHADE_MIN+shade,0,SHADE_MAX-shade
-                        (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
-                    ),
-                    color(0,0,0)
-                );
-                */
+                    drawTriangle(
+                        v0, v1, v2,
+                        //gen_uv_tex, gen_textureWidth, gen_textureHeight
+                        all_models[m_id]->gen_uv_tex,
+                        all_models[m_id]->gen_textureWidth,
+                        all_models[m_id]->gen_textureHeight
+                    );
+                }
+                free(face_draw_order);
+                free(vert_z_depths);
+                free(screen_coords);
             }
-            free(face_draw_order);
-            free(vert_z_depths);
-            free(screen_coords);
         }
+        else if (RENDER_MODE == 1){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
+                //   3. Face draw order (to be created)
+                //unsigned int * face_draw_order = (unsigned int*) malloc(sizeof(unsigned int) * all_models[m_id]->faces_count);
+                uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
 
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &vert_z_depths[v_id]
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                    //draw_center_square(x, y, 4,4, color(255,0,0));
+                    //_Unsafe_setPixel(x, y, color(0,0,0));
+                }
+
+                // Init the face_draw_order
+                // -- CRUDE ORDERING (Work In Progress)
+                for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    // CRUDELY only choosing first vertex
+                    unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
+                    unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
+                    unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
+                    // Get face z-depth
+                    Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+
+                    // Init index = f_id
+                    face_draw_order[f_id].uint = f_id;
+                    face_draw_order[f_id].fix16 = f_z_depth;
+                }
+                // Sorting
+                bubble_sort(face_draw_order, all_models[m_id]->faces_count);
+
+                // Draw face edges
+                #define SHADE_MAX 255
+                #define SHADE_MIN 100
+                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
+                {
+                    auto f_id = face_draw_order[ordered_id].uint;
+                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
+                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
+                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
+                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
+                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
+                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0_x == fix16_cast_int_min ||
+                        v1_x == fix16_cast_int_min ||
+                        v2_x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
+
+                    uint32_t colorr =
+                        0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
+
+                    triangle(
+                        v0_x,v0_y,
+                        v1_x,v1_y,
+                        v2_x,v2_y,
+                        color(
+                            //SHADE_MIN+shade,0,SHADE_MAX-shade
+                            (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
+                        ),
+                        color(0,0,0)
+                    );
+                }
+                free(face_draw_order);
+                free(vert_z_depths);
+                free(screen_coords);
+            }
+        }
+        else if (RENDER_MODE == 2){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 fix16_sink;
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &fix16_sink
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                }
+
+                //(for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                for (unsigned int f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
+                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
+                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
+                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
+                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
+                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0_x == fix16_cast_int_min ||
+                        v1_x == fix16_cast_int_min ||
+                        v2_x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
+
+                    triangle(
+                        v0_x,v0_y,
+                        v1_x,v1_y,
+                        v2_x,v2_y,
+                        color(
+                            //SHADE_MIN+shade,0,SHADE_MAX-shade
+                            255,(f_id*8)%255,(f_id*16)%255
+                        ),
+                        color(0,0,0)
+                    );
+                }
+                free(screen_coords);
+            }
+        }
+        else if (RENDER_MODE == 3){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 fix16_sink;
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &fix16_sink
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                }
+
+                for (unsigned int f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    auto v0_x = (screen_coords[all_models[m_id]->faces[f_id].First].x);
+                    auto v0_y = (screen_coords[all_models[m_id]->faces[f_id].First].y);
+                    auto v1_x = (screen_coords[all_models[m_id]->faces[f_id].Second].x);
+                    auto v1_y = (screen_coords[all_models[m_id]->faces[f_id].Second].y);
+                    auto v2_x = (screen_coords[all_models[m_id]->faces[f_id].Third].x);
+                    auto v2_y = (screen_coords[all_models[m_id]->faces[f_id].Third].y);
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0_x == fix16_cast_int_min ||
+                        v1_x == fix16_cast_int_min ||
+                        v2_x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
+
+                    line(v0_x,v0_y, v1_x, v1_y, color(0,0,0));
+                    line(v1_x,v1_y, v2_x, v2_y, color(0,0,0));
+                    line(v2_x,v2_y, v0_x, v0_y, color(0,0,0));
+
+                }
+                free(screen_coords);
+            }
+        }
+        else if (RENDER_MODE == 4){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                Fix16 fix16_sink;
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &fix16_sink
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( x == fix16_cast_int_min  ){
+                        continue;
+                    }
+                    draw_center_square(x,y,5,5, color(0,0,0));
+                }
+
+            }
+        }
 // --------------------------------------------------
 
         // ----- Refresh screen -----
 #ifndef PC
+        #ifndef PC
+        fps_formatted_update();
+        fps_display();
+        #endif
         LCD_Refresh();
 #else
+        // Draw FPS
+        Uint32 currentTime = SDL_GetTicks();
+        frames++;
+        if (currentTime - startTime >= 250) {
+            // If 1 second has passed, update the FPS string
+            float fps = frames / ((currentTime - startTime) / 1000.0f);
+            last_fps = (uint32_t) fps;
+            // Reset the counters
+            startTime = currentTime;
+            frames = 0;
+        }
+        sdl_debug_uint32_t(last_fps, 10, 10);
+
+
         SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_RenderPresent(renderer);
 #endif
-        #ifdef PC
-            uint64_t end = SDL_GetPerformanceCounter();
-            float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
-            float fps_raw = (1.0f/elapsed);
-            float alpha_fps = 0.1f; // "percentage"
-            fps_smooth = (fps_raw*alpha_fps + fps_smooth*(100.0f-alpha_fps))/100.0f;
-
-            std::cout << "Average FPS: " << fps_smooth << std::endl;
-        #endif
     }
 
 #ifndef PC
