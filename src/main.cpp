@@ -216,8 +216,30 @@ fix16_vec3 calculateNormal(const fix16_vec3& v0, const fix16_vec3& v1, const fix
     return crossProduct(edge1, edge2);
 }
 
-void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t color)
-{
+// Normalize a vector
+void normalize_fix16_vec3(fix16_vec3& vec) {
+    Fix16 length = fix16_sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+    vec.x /= length;
+    vec.y /= length;
+    vec.z /= length;
+}
+
+Fix16 calculateLightIntensity(const fix16_vec3& lightPos, const fix16_vec3& surfacePos, const fix16_vec3& normal, Fix16 lightIntensity) {
+    fix16_vec3 lightDir = {lightPos.x - surfacePos.x, lightPos.y - surfacePos.y, lightPos.z - surfacePos.z};
+    normalize_fix16_vec3(lightDir);
+
+    Fix16 intensity = lightIntensity * fix16_max(0, lightDir.x * normal.x + lightDir.y * normal.y + lightDir.z * normal.z);
+
+    return intensity;
+}
+
+void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy,
+#ifdef PC
+uint32_t color
+#else
+uint16_t color
+#endif
+) {
     for(int16_t i=-sx/2; i<sx/2; i++)
     {
         for(int16_t j=-sy/2; j<sy/2; j++)
@@ -309,7 +331,7 @@ int shellSort(uint_fix16_t arr[], int n)
     return 0;
 }
 
-void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight) {
+void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight, Fix16 lightInstensity = 1.0f) {
     if (x0 > x1) {
         swap(x0, x1);
         swap(u0, u1);
@@ -322,11 +344,13 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
 
         if (u >= 0 && u < textureWidth && v >= 0 && v < textureHeight) {
             auto texel = texture[u + v * textureWidth];
-            auto c = color(
-                    (0xff & (texel>>16)),
-                    (0xff & (texel>>8)),
-                    (0xff & texel)
-            );
+            uint8_t r = (0xff & (texel>>16));
+            uint8_t g = (0xff & (texel>>8));
+            uint8_t b = (0xff & texel);
+            r = (uint8_t) ((int16_t)(Fix16((int16_t)r) * lightInstensity));
+            g = (uint8_t) ((int16_t)(Fix16((int16_t)g) * lightInstensity));
+            b = (uint8_t) ((int16_t)(Fix16((int16_t)b) * lightInstensity));
+            auto c = color(r,g,b);
             setPixel(x0, y, c);
         }
         return;
@@ -339,11 +363,13 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
 
         if (u >= 0 && u < textureWidth && v >= 0 && v < textureHeight) {
             auto texel = texture[u + v * textureWidth];
-            auto c = color(
-                    (0xff & (texel>>16)),
-                    (0xff & (texel>>8)),
-                    (0xff & texel)
-            );
+            uint8_t r = (0xff & (texel>>16));
+            uint8_t g = (0xff & (texel>>8));
+            uint8_t b = (0xff & texel);
+            r = (uint8_t) ((int16_t)(Fix16((int16_t)r) * lightInstensity));
+            g = (uint8_t) ((int16_t)(Fix16((int16_t)g) * lightInstensity));
+            b = (uint8_t) ((int16_t)(Fix16((int16_t)b) * lightInstensity));
+            auto c = color(r,g,b);
             setPixel(x, y, c);
         }
     }
@@ -351,7 +377,8 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
 
 void drawTriangle(
     Point2d v0, Point2d v1, Point2d v2,
-    uint32_t *texture, int textureWidth, int textureHeight
+    uint32_t *texture, int textureWidth, int textureHeight,
+    Fix16 lightInstensity = 1.0f
 ) {
     if (v0.y > v1.y) swap(v0, v1);
     if (v0.y > v2.y) swap(v0, v2);
@@ -377,7 +404,7 @@ void drawTriangle(
         int v0_coord = v0.v + ((v2.v - v0.v) * alpha >> 16);
         int v1_coord = v0.v + ((v1.v - v0.v) * beta >> 16);
 
-        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight);
+        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight, lightInstensity);
     }
 
     // Drawing the lower part of the triangle
@@ -395,7 +422,7 @@ void drawTriangle(
         int v0_coord = v0.v + ((v2.v - v0.v) * alpha >> 16);
         int v1_coord = v1.v + ((v2.v - v1.v) * beta >> 16);
 
-        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight);
+        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight, lightInstensity);
     }
 }
 
@@ -553,6 +580,21 @@ void draw_RotationVisualizer(fix16_vec2 camera_rot)
     line(((int16_t) p_x.x)+offset_x,((int16_t) p_x.y)+offset_y, offset_x, offset_y, color(255,0,0));
     line(((int16_t) p_y.x)+offset_x,((int16_t) p_y.y)+offset_y, offset_x, offset_y, color(0,255,0));
     line(((int16_t) p_z.x)+offset_x,((int16_t) p_z.y)+offset_y, offset_x, offset_y, color(0,0,255));
+}
+
+void draw_SunLocation(Fix16 FOV, fix16_vec3 lightPos, fix16_vec3 camera_pos, fix16_vec2 camera_rot)
+{
+    Fix16 z_depth;
+    auto screen_vec2 = getScreenCoordinate(
+        FOV, lightPos,
+        {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f},
+        {1.0f, 1.0f, 1.0f},
+        camera_pos, camera_rot,
+        &z_depth
+    );
+    int16_t x = (int16_t)screen_vec2.x;
+    int16_t y = (int16_t)screen_vec2.y;
+    draw_center_square(x, y, 9,9, color(238,210,2));
 }
 
 #ifndef PC
@@ -810,7 +852,10 @@ int main(int argc, const char * argv[])
 #ifndef PC
     bool KEY_0_prev = false;
 #endif
-    const uint16_t RENDER_MODE_COUNT = 5;
+    fix16_vec3 lightPos = {0.0f, 0.0f, 0.0f};
+    Fix16 lightRotation = 0.0f;
+
+    const uint16_t RENDER_MODE_COUNT = 7;
     uint16_t RENDER_MODE = RENDER_MODE_COUNT-1;
     while(!done)
     {
@@ -824,6 +869,15 @@ int main(int argc, const char * argv[])
 
         fillScreen(FILL_SCREEN_COLOR);
         // --------------------------
+#ifdef PC
+        lightRotation += 0.005f;
+#else
+        lightRotation += 0.005f*40.0f;
+#endif
+
+        lightPos.x = lightRotation.sin() * Fix16(-8.0f);
+        lightPos.y = -10.0f;
+        lightPos.z = lightRotation.cos() * Fix16(-8.0f);
 
 
         // ----- Check for exit -----
@@ -993,14 +1047,150 @@ int main(int argc, const char * argv[])
 // --------------------------------------------------
 
 #ifdef PC
-        //all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
+        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
 #else
-        //all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
+        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
 #endif
 
-        if (RENDER_MODE == 0){
+        if (RENDER_MODE == 0)
+        {
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
+                //   3. Face draw order (to be created)
+                uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
+                //   4. Face Normals
+                fix16_vec3* face_normals = (fix16_vec3*) malloc(sizeof(fix16_vec3) * all_models[m_id]->faces_count);
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &vert_z_depths[v_id]
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                }
+
+                // Init the face_draw_order
+                // -- CRUDE ORDERING (Work In Progress)
+                for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    // CRUDELY only choosing first vertex
+                    unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
+                    unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
+                    unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
+                    // Get face z-depth
+                    Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+
+                    // Init index = f_id
+                    face_draw_order[f_id].uint = f_id;
+                    face_draw_order[f_id].fix16 = f_z_depth;
+
+                    // ----- Calculate also face normals here
+
+                    // Face vertices
+                    fix16_vec3 v0 = all_models[m_id]->vertices[f_v0_id];
+                    fix16_vec3 v1 = all_models[m_id]->vertices[f_v1_id];
+                    fix16_vec3 v2 = all_models[m_id]->vertices[f_v2_id];
+                    // Model rotation
+                    rotateOnPlane(v0.x, v0.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v0.y, v0.z, all_models[m_id]->rotation.y);
+                    rotateOnPlane(v1.x, v1.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v1.y, v1.z, all_models[m_id]->rotation.y);
+                    rotateOnPlane(v2.x, v2.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v2.y, v2.z, all_models[m_id]->rotation.y);
+                    // Model traslation
+                    v0.x += all_models[m_id]->position.x;
+                    v0.y += all_models[m_id]->position.y;
+                    v0.z += all_models[m_id]->position.z;
+                    v1.x += all_models[m_id]->position.x;
+                    v1.y += all_models[m_id]->position.y;
+                    v1.z += all_models[m_id]->position.z;
+                    v2.x += all_models[m_id]->position.x;
+                    v2.y += all_models[m_id]->position.y;
+                    v2.z += all_models[m_id]->position.z;
+                    // Calculate face normal
+                    auto face_norm = calculateNormal(v0, v1, v2);
+                    normalize_fix16_vec3(face_norm);
+                    //
+                    face_normals[f_id] = face_norm;
+                }
+                // Sorting
+                bubble_sort(face_draw_order, all_models[m_id]->faces_count);
+                //heapSort(face_draw_order, all_models[m_id]->faces_count);
+                //shellSort(face_draw_order, all_models[m_id]->faces_count);
+
+                // Draw face edges
+                for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
+                {
+                    auto f_id = face_draw_order[ordered_id].uint;
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
+                    auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
+                    auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
+                    auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
+
+                    auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+
+                    auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+
+                    auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
+                    auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
+
+                    Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
+                    Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
+                    Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
+
+                    const auto face_pos = all_models[m_id]->vertices[all_models[m_id]->faces[f_id].First];
+                    Fix16 lightIntensity = calculateLightIntensity(
+                         lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
+                    );
+
+                    drawTriangle(
+                        v0_screen, v1_screen, v2_screen,
+                        //gen_uv_tex, gen_textureWidth, gen_textureHeight
+                        all_models[m_id]->gen_uv_tex,
+                        all_models[m_id]->gen_textureWidth,
+                        all_models[m_id]->gen_textureHeight,
+                        lightIntensity
+                    );
+                }
+                free(face_draw_order);
+                free(vert_z_depths);
+                free(screen_coords);
+                free(face_normals);
+            }
+
+            // Draw sun visualizer
+            draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
+
+        }
+
+        else if (RENDER_MODE == 1){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
                 // For each model..
@@ -1093,7 +1283,118 @@ int main(int argc, const char * argv[])
                 free(screen_coords);
             }
         }
-        else if (RENDER_MODE == 1){
+        else if (RENDER_MODE == 2){
+            for (unsigned m_id=0; m_id<all_model_count; m_id++)
+            {
+                // For each model..
+                // Allocate memory first:
+                //   1. Screen coordinates
+                int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * all_models[m_id]->vertex_count);
+                //   2. Draw order list
+                Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * all_models[m_id]->vertex_count);
+                //   3. Face draw order (to be created)
+                uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * all_models[m_id]->faces_count);
+                //   4. Face Normals
+                fix16_vec3* face_normals = (fix16_vec3*) malloc(sizeof(fix16_vec3) * all_models[m_id]->faces_count);
+
+                // Get screen coordinates
+                for (unsigned v_id=0; v_id<all_models[m_id]->vertex_count; v_id++){
+                    fix16_vec2 screen_vec2;
+                    screen_vec2 = getScreenCoordinate(
+                        FOV, all_models[m_id]->vertices[v_id],
+                        all_models[m_id]->getPosition_ref(), all_models[m_id]->getRotation_ref(),
+                        all_models[m_id]->getScale_ref(),
+                        camera_pos, camera_rot,
+                        &vert_z_depths[v_id]
+                    );
+                    int16_t x = (int16_t)screen_vec2.x;
+                    int16_t y = (int16_t)screen_vec2.y;
+                    screen_coords[v_id] = {x, y};
+                }
+                // Init the face_draw_order
+                // -- CRUDE ORDERING (Work In Progress)
+                for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
+                {
+                    // CRUDELY only choosing first vertex
+                    unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
+                    unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
+                    unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
+                    // Get face z-depth
+                    Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                    f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+
+                    // Init index = f_id
+                    face_draw_order[f_id].uint = f_id;
+                    face_draw_order[f_id].fix16 = f_z_depth;
+
+                    // ----- Calculate also face normals here
+
+                    // Face vertices
+                    fix16_vec3 v0 = all_models[m_id]->vertices[f_v0_id];
+                    fix16_vec3 v1 = all_models[m_id]->vertices[f_v1_id];
+                    fix16_vec3 v2 = all_models[m_id]->vertices[f_v2_id];
+                    // Model rotation
+                    rotateOnPlane(v0.x, v0.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v0.y, v0.z, all_models[m_id]->rotation.y);
+                    rotateOnPlane(v1.x, v1.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v1.y, v1.z, all_models[m_id]->rotation.y);
+                    rotateOnPlane(v2.x, v2.z, all_models[m_id]->rotation.x);
+                    rotateOnPlane(v2.y, v2.z, all_models[m_id]->rotation.y);
+                    // Model traslation
+                    v0.x += all_models[m_id]->position.x;
+                    v0.y += all_models[m_id]->position.y;
+                    v0.z += all_models[m_id]->position.z;
+                    v1.x += all_models[m_id]->position.x;
+                    v1.y += all_models[m_id]->position.y;
+                    v1.z += all_models[m_id]->position.z;
+                    v2.x += all_models[m_id]->position.x;
+                    v2.y += all_models[m_id]->position.y;
+                    v2.z += all_models[m_id]->position.z;
+                    // Calculate face normal
+                    auto face_norm = calculateNormal(v0, v1, v2);
+                    normalize_fix16_vec3(face_norm);
+                    //
+                    face_normals[f_id] = face_norm;
+                }
+                // Sorting
+                bubble_sort(face_draw_order, all_models[m_id]->faces_count);
+
+                // Draw face edges
+                for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
+                {
+                    auto f_id = face_draw_order[ordered_id].uint;
+                    const auto v0 = screen_coords[all_models[m_id]->faces[f_id].First];
+                    const auto v1 = screen_coords[all_models[m_id]->faces[f_id].Second];
+                    const auto v2 = screen_coords[all_models[m_id]->faces[f_id].Third];
+                    const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                    if( v0.x == fix16_cast_int_min ||
+                        v1.x == fix16_cast_int_min ||
+                        v2.x == fix16_cast_int_min
+                    ){
+                        continue;
+                    }
+
+                    const auto face_pos = all_models[m_id]->vertices[all_models[m_id]->faces[f_id].First];
+                    Fix16 lightIntensity = calculateLightIntensity(
+                         lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
+                    );
+                    triangle(
+                        v0.x,v0.y,v1.x,v1.y,v2.x,v2.y,
+                        color((int16_t)(lightIntensity*255.0f),(int16_t)(lightIntensity*255.0f),(int16_t)(lightIntensity*255.0f)),
+                        color(0,0,0)
+                    );
+                }
+                free(face_draw_order);
+                free(vert_z_depths);
+                free(screen_coords);
+                free(face_normals);
+            }
+            // Draw sun visualizer
+            draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
+        }
+
+        else if (RENDER_MODE == 3){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
                 // For each model..
@@ -1167,7 +1468,7 @@ int main(int argc, const char * argv[])
                 free(screen_coords);
             }
         }
-        else if (RENDER_MODE == 2){
+        else if (RENDER_MODE == 4){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
                 // For each model..
@@ -1212,7 +1513,7 @@ int main(int argc, const char * argv[])
                 free(screen_coords);
             }
         }
-        else if (RENDER_MODE == 3){
+        else if (RENDER_MODE == 5){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
                 // For each model..
@@ -1255,7 +1556,7 @@ int main(int argc, const char * argv[])
                 free(screen_coords);
             }
         }
-        else if (RENDER_MODE == 4){
+        else if (RENDER_MODE == 6){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
                 Fix16 fix16_sink;
