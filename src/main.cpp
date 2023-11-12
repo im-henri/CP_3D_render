@@ -577,18 +577,12 @@ int main(int argc, const char * argv[])
     Model model_test  = Model(model_path, model_texture_path);
     model_test.getRotation_ref().y = Fix16(3.145f/2.0f);
 
-
-    Model model_test2  = Model(model_path, model_texture_path);
-    model_test2.getRotation_ref().y = Fix16(3.145f/2.0f);
-    model_test.getPosition_ref().x += 10.0f;
-
     // -----------------
     // Models to render
     Model* all_models[] = {
         //&model_floor,
         // &cube1, &testmodel, &model_test
-        &model_test,
-        &model_test2
+        &model_test
     };
     const unsigned all_model_count = sizeof(all_models) / sizeof(all_models[0]);
 
@@ -618,23 +612,23 @@ int main(int argc, const char * argv[])
 
         if(testKey(k1,k2,KEY_4))  {
             //camera_pos.x -= 0.1f;
-            camera_pos.z += camera_rot.x.sin()*0.20f;
-            camera_pos.x -= camera_rot.x.cos()*0.20f;
+            camera_pos.z += camera_rot.x.sin()*0.60f;
+            camera_pos.x -= camera_rot.x.cos()*0.60f;
         }
         if(testKey(k1,k2,KEY_6)) {
             //camera_pos.x += 0.1f;
-            camera_pos.z -= camera_rot.x.sin()*0.20f;
-            camera_pos.x += camera_rot.x.cos()*0.20f;
+            camera_pos.z -= camera_rot.x.sin()*0.60f;
+            camera_pos.x += camera_rot.x.cos()*0.60f;
         }
         if(testKey(k1,k2,KEY_8))    {
             //camera_pos.z += 0.1f;
-            camera_pos.x += camera_rot.x.sin()*0.20f;
-            camera_pos.z += camera_rot.x.cos()*0.20f;
+            camera_pos.x += camera_rot.x.sin()*0.60f;
+            camera_pos.z += camera_rot.x.cos()*0.60f;
         }
         if(testKey(k1,k2,KEY_2))  {
             //camera_pos.z -= 0.1f;
-            camera_pos.x -= camera_rot.x.sin()*0.20f;
-            camera_pos.z -= camera_rot.x.cos()*0.20f;
+            camera_pos.x -= camera_rot.x.sin()*0.60f;
+            camera_pos.z -= camera_rot.x.cos()*0.60f;
         }
         if(testKey(k1,k2,KEY_9))     {
             camera_pos.y -= 0.1f;
@@ -713,20 +707,20 @@ int main(int argc, const char * argv[])
         }
 
         if (key_left){
-            camera_pos.z += camera_rot.x.sin()*0.009f;
-            camera_pos.x -= camera_rot.x.cos()*0.009f;
+            camera_pos.z += camera_rot.x.sin()*0.02f;
+            camera_pos.x -= camera_rot.x.cos()*0.02f;
         }
         if (key_right){
-            camera_pos.z -= camera_rot.x.sin()*0.009f;
-            camera_pos.x += camera_rot.x.cos()*0.009f;
+            camera_pos.z -= camera_rot.x.sin()*0.02f;
+            camera_pos.x += camera_rot.x.cos()*0.02f;
         }
         if (key_up){
-            camera_pos.x += camera_rot.x.sin()*0.009f;
-            camera_pos.z += camera_rot.x.cos()*0.009f;
+            camera_pos.x += camera_rot.x.sin()*0.02f;
+            camera_pos.z += camera_rot.x.cos()*0.02f;
         }
         if (key_down){
-            camera_pos.x -= camera_rot.x.sin()*0.009f;
-            camera_pos.z -= camera_rot.x.cos()*0.009f;
+            camera_pos.x -= camera_rot.x.sin()*0.02f;
+            camera_pos.z -= camera_rot.x.cos()*0.02f;
         }
         if (key_r){
             camera_pos.y -= 0.006f;

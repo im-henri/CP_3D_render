@@ -97,17 +97,5 @@ def main():
     fPC.close()
     fCP.close()
 
-    with open("src/gen_uv_tex.hpp", "w") as f:
-        f.write(f"#pragma once\n\n")
-        f.write(f"const int gen_textureWidth  = {textureSize};\n")
-        f.write(f"const int gen_textureHeight = {textureSize};\n")
-        f.write("uint32_t gen_uv_tex[gen_textureWidth*gen_textureHeight] = {\n")
-        for row in texture:
-            f.write("    ")
-            for item in row:
-                f.write(f"{item}, ")
-            f.write("\n")
-        f.write("};")
-
 if __name__ == "__main__":
     main()
