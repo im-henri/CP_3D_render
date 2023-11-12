@@ -57,7 +57,8 @@ Uint32 * screenPixels;
 #ifdef PC
 void setPixel(int x, int y, uint32_t color)
 {
-    screenPixels[y * SCREEN_X + x] = color;
+    if(x>=0 && x < SCREEN_X && y>=0 && y < SCREEN_Y)
+        screenPixels[y * SCREEN_X + x] = color;
 }
 //void LCD_ClearScreen()
 void LCD_ClearScreen()
@@ -833,20 +834,20 @@ int main(int argc, const char * argv[])
         }
 
         if (key_left){
-            camera_pos.z += camera_rot.x.sin()*0.02f;
-            camera_pos.x -= camera_rot.x.cos()*0.02f;
+            camera_pos.z += camera_rot.x.sin()*0.025f;
+            camera_pos.x -= camera_rot.x.cos()*0.025f;
         }
         if (key_right){
-            camera_pos.z -= camera_rot.x.sin()*0.02f;
-            camera_pos.x += camera_rot.x.cos()*0.02f;
+            camera_pos.z -= camera_rot.x.sin()*0.025f;
+            camera_pos.x += camera_rot.x.cos()*0.025f;
         }
         if (key_up){
-            camera_pos.x += camera_rot.x.sin()*0.02f;
-            camera_pos.z += camera_rot.x.cos()*0.02f;
+            camera_pos.x += camera_rot.x.sin()*0.025f;
+            camera_pos.z += camera_rot.x.cos()*0.025f;
         }
         if (key_down){
-            camera_pos.x -= camera_rot.x.sin()*0.02f;
-            camera_pos.z -= camera_rot.x.cos()*0.02f;
+            camera_pos.x -= camera_rot.x.sin()*0.025f;
+            camera_pos.z -= camera_rot.x.cos()*0.025f;
         }
         if (key_r){
             camera_pos.y -= 0.006f;
@@ -856,16 +857,16 @@ int main(int argc, const char * argv[])
         }
 
         if (key_a){
-            camera_rot.x -= 0.002f;
+            camera_rot.x -= 0.0035f;
         }
         if (key_d){
-            camera_rot.x += 0.002f;
+            camera_rot.x += 0.0035f;
         }
         if (key_w){
-            camera_rot.y -= 0.002f;
+            camera_rot.y -= 0.0035f;
         }
         if (key_s){
-            camera_rot.y += 0.002f;
+            camera_rot.y += 0.0035f;
         }
 
         if (key_1){
@@ -879,10 +880,10 @@ int main(int argc, const char * argv[])
 // --------------------------------------------------
 
 #ifdef PC
-        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
+        //all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
 #else
-        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
+        //all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
 #endif
 

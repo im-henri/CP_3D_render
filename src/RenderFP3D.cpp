@@ -69,9 +69,12 @@ fix16_vec2 getScreenCoordinate(
     if z>0 and x < self.width+ extra and x > -extra and y >-extra and y < self.height+extra:
         drawit = True
     */
-    if( sx < 0.0f || sx > (float)SCREEN_X
+    auto extra = 200.0f;
+    if( temp.z < 0.0f
         ||
-        sy < 0.0f || sy > (float)SCREEN_Y
+        sx < (0.0f-extra) || sx > ((float)SCREEN_X+extra)
+        ||
+        sy < (0.0f-extra) || sy > ((float)SCREEN_Y+extra)
     ){
         sx = fix16_minimum;
         //sy = fix16_minimum;
