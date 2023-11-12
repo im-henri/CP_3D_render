@@ -28,12 +28,6 @@
 
 #define FILL_SCREEN_COLOR color(190,190,190)
 
-//extern const int gen_textureWidth;
-//extern const int gen_textureHeight;
-//extern uint32_t gen_uv_tex[gen_textureWidth*gen_textureHeight];
-
-uint16_t *p_vram;  //The vram pointer
-
 //
 // ----------------------
 //
@@ -56,20 +50,9 @@ inline uint32_t ByteArrToUint32_t(char* bytes)
 // ----------------------
 //
 
-
 #ifdef PC
 Uint32 * screenPixels;
 #endif
-
-inline void _Unsafe_setPixel(int x,int y, uint32_t color) {
-    //if(x>=0 && x < width && y>=0 && y < height)
-#ifdef PC
-    screenPixels[y * SCREEN_X + x] = color;
-#else
-    p_vram[SCREEN_X*y + x] = color;
-#endif
-}
-
 
 #ifdef PC
 void setPixel(int x, int y, uint32_t color)
@@ -89,51 +72,51 @@ void fillScreen(uint32_t color)
 {
     for (int x=0; x<SCREEN_X; x++){
         for (int y=0; y<SCREEN_Y; y++){
-            _Unsafe_setPixel(x,y,color);
+            setPixel(x,y,color);
         }
     }
 }
 
 //Draw a line (bresanham line algorithm)
 void line(int x1, int y1, int x2, int y2, uint32_t color){
-	int8_t ix, iy;
+    int8_t ix, iy;
 
-	int dx = (x2>x1 ? (ix=1, x2-x1) : (ix=-1, x1-x2) );
-	int dy = (y2>y1 ? (iy=1, y2-y1) : (iy=-1, y1-y2) );
+    int dx = (x2>x1 ? (ix=1, x2-x1) : (ix=-1, x1-x2) );
+    int dy = (y2>y1 ? (iy=1, y2-y1) : (iy=-1, y1-y2) );
 
-	_Unsafe_setPixel(x1,y1,color);
-	if(dx>=dy){ //the derivative is less than 1 (not so steep)
-		//y1 is the whole number of the y value
-		//error is the fractional part (times dx to make it a whole number)
-		// y = y1 + (error/dx)
-		//if error/dx is greater than 0.5 (error is greater than dx/2) we add 1 to y1 and subtract dx from error (so error/dx is now around -0.5)
-		int error = 0;
-		while (x1!=x2) {
-			x1 += ix; //go one step in x direction
-			error += dy;//add dy/dx to the y value.
-			if (error>=(dx>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
-				y1+=iy;
-				error-=dx;
-			}
-			_Unsafe_setPixel(x1,y1,color);
-		}
-	}else{ //the derivative is greater than 1 (very steep)
-		int error = 0;
-		while (y1!=y2) { //The same thing, just go up y and look at x
-			y1 += iy; //go one step in y direction
-			error += dx;//add dx/dy to the x value.
-			if (error>=(dy>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
-				x1+=ix;
-				error-=dy;
-			}
-			_Unsafe_setPixel(x1,y1,color);
-		}
-	}
+    setPixel(x1,y1,color);
+    if(dx>=dy){ //the derivative is less than 1 (not so steep)
+        //y1 is the whole number of the y value
+        //error is the fractional part (times dx to make it a whole number)
+        // y = y1 + (error/dx)
+        //if error/dx is greater than 0.5 (error is greater than dx/2) we add 1 to y1 and subtract dx from error (so error/dx is now around -0.5)
+        int error = 0;
+        while (x1!=x2) {
+            x1 += ix; //go one step in x direction
+            error += dy;//add dy/dx to the y value.
+            if (error>=(dx>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
+                y1+=iy;
+                error-=dx;
+            }
+            setPixel(x1,y1,color);
+        }
+    }else{ //the derivative is greater than 1 (very steep)
+        int error = 0;
+        while (y1!=y2) { //The same thing, just go up y and look at x
+            y1 += iy; //go one step in y direction
+            error += dx;//add dx/dy to the x value.
+            if (error>=(dy>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
+                x1+=ix;
+                error-=dy;
+            }
+            setPixel(x1,y1,color);
+        }
+    }
 }
 void vline(int x, int y1, int y2, uint32_t color){ //vertical line needed for triangle()
-	if (y1>y2) { int z=y2; y2=y1; y1=z;}
-	for (int y=y1; y<=y2; y++)
-		_Unsafe_setPixel(x,y,color);
+    if (y1>y2) { int z=y2; y2=y1; y1=z;}
+    for (int y=y1; y<=y2; y++)
+        setPixel(x,y,color);
 }
 
 //Draw a filled triangle.
@@ -148,72 +131,72 @@ void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colorFill
 The triangle has three points P0, P1 and P2 and three lines a, b and c. We go from left to right, calculating the point on a and the point on b or c and then we draw a vertical line connecting these two.
 */
 
-	//Sort the points by x coordinate
-	{
-		int z;
-		if(x0>x2){ z=x2; x2=x0; x0=z; z=y2; y2=y0; y0=z; }
-		if(x1>x2){ z=x2; x2=x1; x1=z; z=y2; y2=y1; y1=z; }
-		if(x0>x1){ z=x1; x1=x0; x0=z; z=y1; y1=y0; y0=z; }
-	}
+    //Sort the points by x coordinate
+    {
+        int z;
+        if(x0>x2){ z=x2; x2=x0; x0=z; z=y2; y2=y0; y0=z; }
+        if(x1>x2){ z=x2; x2=x1; x1=z; z=y2; y2=y1; y1=z; }
+        if(x0>x1){ z=x1; x1=x0; x0=z; z=y1; y1=y0; y0=z; }
+    }
 
-	int x = x0; //x is the variable that counts from left to right
+    int x = x0; //x is the variable that counts from left to right
 
-	//Values for line a
-	int ay = y0; //The point y for the current x on the line a
-	int aiy; //The direction of line a
-	int adx = (x2>x0 ? (       x2-x0) : (        x0-x2) );
-	int ady = (y2>y0 ? (aiy=1, y2-y0) : (aiy=-1, y0-y2) );
-	int aerr = 0; //The y value of a (fractional part). y is actually ay+(aerr/adx)
+    //Values for line a
+    int ay = y0; //The point y for the current x on the line a
+    int aiy; //The direction of line a
+    int adx = (x2>x0 ? (       x2-x0) : (        x0-x2) );
+    int ady = (y2>y0 ? (aiy=1, y2-y0) : (aiy=-1, y0-y2) );
+    int aerr = 0; //The y value of a (fractional part). y is actually ay+(aerr/adx)
 
-	//Values for line b
-	int by = y0; //The point y for the current x on the line b
-	int biy; //The direction of line b
-	int bdx = (x1>x0 ? (       x1-x0) : (        x0-x1) );
-	int bdy = (y1>y0 ? (biy=1, y1-y0) : (biy=-1, y0-y1) );
-	int berr = 0;
+    //Values for line b
+    int by = y0; //The point y for the current x on the line b
+    int biy; //The direction of line b
+    int bdx = (x1>x0 ? (       x1-x0) : (        x0-x1) );
+    int bdy = (y1>y0 ? (biy=1, y1-y0) : (biy=-1, y0-y1) );
+    int berr = 0;
 
-	//Values for line c
-	int cy = y1; //The point y for the current x on the line y (starting at P1)
-	int ciy; //The direction of line c
-	int cdx = (x2>x1 ? (       x2-x1) : (        x1-x2) );
-	int cdy = (y2>y1 ? (ciy=1, y2-y1) : (ciy=-1, y1-y2) );
-	int cerr = 0;
+    //Values for line c
+    int cy = y1; //The point y for the current x on the line y (starting at P1)
+    int ciy; //The direction of line c
+    int cdx = (x2>x1 ? (       x2-x1) : (        x1-x2) );
+    int cdy = (y2>y1 ? (ciy=1, y2-y1) : (ciy=-1, y1-y2) );
+    int cerr = 0;
 
-	//First draw area between a and b
-	while (x<x1){
-		x++;
-		aerr+=ady;
-		while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
-			aerr-=adx;
-			ay+=aiy;
-		}
-		berr+=bdy;
-		while(berr>=bdx >> 2){ //if berr/bdx >= 0.5
-			berr-=bdx;
-			by+=biy;
-		}
-		vline(x,ay,by,colorFill);
-	}
+    //First draw area between a and b
+    while (x<x1){
+        x++;
+        aerr+=ady;
+        while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
+            aerr-=adx;
+            ay+=aiy;
+        }
+        berr+=bdy;
+        while(berr>=bdx >> 2){ //if berr/bdx >= 0.5
+            berr-=bdx;
+            by+=biy;
+        }
+        vline(x,ay,by,colorFill);
+    }
 
-	//Then draw area between a and c
-	while (x<x2-1){ //we don't need x=x2, bacause x should already have the right vaue...
-		x++;
-		aerr+=ady;
-		while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
-			aerr-=adx;
-			ay+=aiy;
-		}
-		cerr+=cdy;
-		while(cerr>=cdx >> 2){ //if berr/bdx >= 0.5
-			cerr-=cdx;
-			cy+=ciy;
-		}
-		vline(x,ay,cy,colorFill);
-	}
+    //Then draw area between a and c
+    while (x<x2-1){ //we don't need x=x2, bacause x should already have the right vaue...
+        x++;
+        aerr+=ady;
+        while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
+            aerr-=adx;
+            ay+=aiy;
+        }
+        cerr+=cdy;
+        while(cerr>=cdx >> 2){ //if berr/bdx >= 0.5
+            cerr-=cdx;
+            cy+=ciy;
+        }
+        vline(x,ay,cy,colorFill);
+    }
 
-	line(x0,y0,x1,y1,colorLine);
-	line(x1,y1,x2,y2,colorLine);
-	line(x2,y2,x0,y0,colorLine);
+    line(x0,y0,x1,y1,colorLine);
+    line(x1,y1,x2,y2,colorLine);
+    line(x2,y2,x0,y0,colorLine);
 }
 #endif
 
@@ -223,7 +206,7 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     {
         for(int16_t j=-sy/2; j<sy/2; j++)
         {
-            _Unsafe_setPixel(cx+i, cy+j, color);
+            setPixel(cx+i, cy+j, color);
         }
     }
 }
@@ -260,7 +243,7 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
                     (0xff & (texel>>8)),
                     (0xff & texel)
             );
-            _Unsafe_setPixel(x0, y, c);
+            setPixel(x0, y, c);
         }
         return;
     }
@@ -277,7 +260,7 @@ void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, u
                     (0xff & (texel>>8)),
                     (0xff & texel)
             );
-            _Unsafe_setPixel(x, y, c);
+            setPixel(x, y, c);
         }
     }
 }
@@ -462,7 +445,6 @@ bool DEBUG_TEST(
 extern "C" void main()
 {
     bool done = false;
-    p_vram = LCD_GetVRAMAddress();
     calcInit(); //backup screen and init some variables
     if (DEBUG_TEST()){
         while(true){
@@ -931,7 +913,7 @@ int main(int argc, const char * argv[])
                     int16_t y = (int16_t)screen_vec2.y;
                     screen_coords[v_id] = {x, y};
                     //draw_center_square(x, y, 4,4, color(255,0,0));
-                    //_Unsafe_setPixel(x, y, color(0,0,0));
+                    //setPixel(x, y, color(0,0,0));
                 }
 
                 // Init the face_draw_order
@@ -1042,7 +1024,7 @@ int main(int argc, const char * argv[])
                     int16_t y = (int16_t)screen_vec2.y;
                     screen_coords[v_id] = {x, y};
                     //draw_center_square(x, y, 4,4, color(255,0,0));
-                    //_Unsafe_setPixel(x, y, color(0,0,0));
+                    //setPixel(x, y, color(0,0,0));
                 }
 
                 // Init the face_draw_order

@@ -6,18 +6,11 @@
 #   include <iostream>
 #endif
 
-/*
-def rotateOnPlane(self,a,b,radians):
-    sin = math.sin(radians)
-    cos = math.cos(radians)
-    rotatedA = a*cos - b*sin
-    rotatedB = b*cos + a*sin
-    return rotatedA, rotatedB
-*/
 void rotateOnPlane(
     Fix16& a, Fix16& b,
     Fix16 radians
 ) {
+    // Use the table in your rotateOnPlane function
     auto sin = radians.sin();
     auto cos = radians.cos();
     // Temp values
@@ -27,7 +20,6 @@ void rotateOnPlane(
     a = rot_a;
     b = rot_b;
 }
-
 
 fix16_vec2 getScreenCoordinate(
     Fix16 FOV, fix16_vec3 point,
@@ -41,33 +33,21 @@ fix16_vec2 getScreenCoordinate(
     point.y *= scale.y;
     point.z *= scale.z;
 
-    /*
-    Model rotation
-    */
+    // Model rotation
     rotateOnPlane(point.x, point.z, rotation.x);
     rotateOnPlane(point.y, point.z, rotation.y);
 
-    /*
-    Model translation + camera position
-    */
+    // Model translation + camera position
     fix16_vec3 temp({
         point.x + translate.x - camera_pos.x,
         point.y + translate.y - camera_pos.y,
         point.z + translate.z - camera_pos.z,
     });
 
-    /*
-    Player camera rotation
-    x, z = self.rotateOnPlane(x, z, self.camera.xRotation)
-    y, z = self.rotateOnPlane(y, z, self.camera.yRotation)
-    */
+    // Player camera rotation
     rotateOnPlane(temp.x, temp.z, camera_rot.x);
     rotateOnPlane(temp.y, temp.z, camera_rot.y);
 
-    /*
-    if z == 0:
-        z = 0.0001
-    */
     // Output Z-Depth
     *z_depth_out = temp.z;
 
@@ -89,7 +69,6 @@ fix16_vec2 getScreenCoordinate(
     if z>0 and x < self.width+ extra and x > -extra and y >-extra and y < self.height+extra:
         drawit = True
     */
-    //*should_draw_out = false;
     if( sx < 0.0f || sx > (float)SCREEN_X
         ||
         sy < 0.0f || sy > (float)SCREEN_Y
