@@ -9,6 +9,8 @@
 
 #include "StringUtils.hpp"
 
+#include "gen_uv_tex.hpp"
+
 #ifndef PC
     #include "app_description.hpp"
     #include <sdk/calc/calc.hpp>
@@ -23,9 +25,13 @@
 #   include <fcntl.h>   // File open & close
 #endif
 
-#define FILL_SCREEN_COLOR color(130,130,130)
+#define FILL_SCREEN_COLOR color(190,190,190)
 
+extern const int gen_textureWidth;
+extern const int gen_textureHeight;
+extern uint32_t gen_uv_tex[gen_textureWidth*gen_textureHeight];
 
+uint16_t *p_vram;  //The vram pointer
 
 //
 // ----------------------
@@ -45,76 +51,6 @@ inline uint32_t ByteArrToUint32_t(char* bytes)
 #endif
 }
 
-bool DEBUG_TEST()
-{
-    return false;
-    // True  = EXIT
-    // False = CONTINUE
-
-    int fd = open(
-#ifdef PC
-        "./processed_comp.PCObj",
-#else
-        "\\fls0\\processed_calc.PCObj",
-#endif
-        UNIVERSIAL_FILE_READ
-    );
-
-    char buff[1024] = {0};
-    int rd_bytes;
-
-    rd_bytes = read(fd, buff, 8+1);
-    uint32_t vert_count = *((uint32_t*)(buff+0));
-    uint32_t face_count = *((uint32_t*)(buff+4));
-    //
-    unsigned lseek_vert_start = 8;
-    unsigned lseek_face_start = lseek_vert_start + vert_count * 3 * 4;
-
-    lseek(fd, lseek_vert_start, SEEK_SET);
-    fix16_vec3* verts = (fix16_vec3*) malloc(sizeof(fix16_vec3) * vert_count);
-    rd_bytes = read(fd, verts, vert_count*3*4);
-
-    lseek(fd, lseek_face_start, SEEK_SET);
-    u_triple* faces    = (u_triple*) malloc(sizeof(u_triple) * face_count);
-    rd_bytes = read(fd, faces, face_count*3*4);   // face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
-
-
-#ifdef PC
-    std::cout << "rd_bytes:   0x" << std::hex << rd_bytes << std::endl;
-    std::cout << "vert_count: 0x" << std::hex << vert_count  << std::endl;
-    std::cout << "face_count: 0x" << std::hex << face_count  << std::endl;
-    for(int i=0; i<vert_count; i++){
-        std::cout << "v("<<i<<")  "
-            << (float) verts[i].x << " "
-            << (float) verts[i].y << " "
-            << (float) verts[i].z << std::endl;
-    }
-    std::cout << std::endl;
-    for(int i=0; i<face_count; i++){
-        std::cout << "v("<<i<<")  "
-            << faces[i].First << " "
-            << faces[i].Second << " "
-            << faces[i].Third << std::endl;
-    }
-#else
-    fillScreen(FILL_SCREEN_COLOR);
-    Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", rd_bytes);
-    Debug_Printf(1,2, false, 0, "vert_count: 0x%x", vert_count );
-    Debug_Printf(1,3, false, 0, "face_count: 0x%x", face_count );
-    Debug_Printf(1,4, false, 0, "Reading 0:  0x%x", verts[0].x.value );
-    Debug_Printf(1,5, false, 0, "Reading 1:  0x%x", verts[0].y.value );
-    LCD_Refresh();
-#endif
-
-    close(fd);
-    free(verts);
-
-    return true;
-    // True  = EXIT
-    // False = CONTINUE
-}
-
-
 //
 // ----------------------
 //
@@ -122,6 +58,19 @@ bool DEBUG_TEST()
 
 #ifdef PC
 Uint32 * screenPixels;
+#endif
+
+inline void _Unsafe_setPixel(int x,int y, uint32_t color) {
+    //if(x>=0 && x < width && y>=0 && y < height)
+#ifdef PC
+    screenPixels[y * SCREEN_X + x] = color;
+#else
+    p_vram[SCREEN_X*y + x] = color;
+#endif
+}
+
+
+#ifdef PC
 void setPixel(int x, int y, uint32_t color)
 {
     screenPixels[y * SCREEN_X + x] = color;
@@ -139,7 +88,7 @@ void fillScreen(uint32_t color)
 {
     for (int x=0; x<SCREEN_X; x++){
         for (int y=0; y<SCREEN_Y; y++){
-            setPixel(x,y,color);
+            _Unsafe_setPixel(x,y,color);
         }
     }
 }
@@ -151,7 +100,7 @@ void line(int x1, int y1, int x2, int y2, uint32_t color){
 	int dx = (x2>x1 ? (ix=1, x2-x1) : (ix=-1, x1-x2) );
 	int dy = (y2>y1 ? (iy=1, y2-y1) : (iy=-1, y1-y2) );
 
-	setPixel(x1,y1,color);
+	_Unsafe_setPixel(x1,y1,color);
 	if(dx>=dy){ //the derivative is less than 1 (not so steep)
 		//y1 is the whole number of the y value
 		//error is the fractional part (times dx to make it a whole number)
@@ -165,7 +114,7 @@ void line(int x1, int y1, int x2, int y2, uint32_t color){
 				y1+=iy;
 				error-=dx;
 			}
-			setPixel(x1,y1,color);
+			_Unsafe_setPixel(x1,y1,color);
 		}
 	}else{ //the derivative is greater than 1 (very steep)
 		int error = 0;
@@ -176,14 +125,14 @@ void line(int x1, int y1, int x2, int y2, uint32_t color){
 				x1+=ix;
 				error-=dy;
 			}
-			setPixel(x1,y1,color);
+			_Unsafe_setPixel(x1,y1,color);
 		}
 	}
 }
 void vline(int x, int y1, int y2, uint32_t color){ //vertical line needed for triangle()
 	if (y1>y2) { int z=y2; y2=y1; y1=z;}
 	for (int y=y1; y<=y2; y++)
-		setPixel(x,y,color);
+		_Unsafe_setPixel(x,y,color);
 }
 
 //Draw a filled triangle.
@@ -273,7 +222,7 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, uint16_t
     {
         for(int16_t j=-sy/2; j<sy/2; j++)
         {
-            setPixel(cx+i, cy+j, color);
+            _Unsafe_setPixel(cx+i, cy+j, color);
         }
     }
 }
@@ -292,9 +241,227 @@ void bubble_sort(uint_fix16_t a[], int n) {
                 swap(a[i - 1], a[i]);
 }
 
+void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight) {
+    if (x0 > x1) {
+        swap(x0, x1);
+        swap(u0, u1);
+        swap(v0, v1);
+    }
+
+    if (x0 == x1) {
+        int u = u0;
+        int v = v0;
+
+        if (u >= 0 && u < textureWidth && v >= 0 && v < textureHeight) {
+            auto texel = texture[u + v * textureWidth];
+            auto c = color(
+                    (0xff & (texel>>16)),
+                    (0xff & (texel>>8)),
+                    (0xff & texel)
+            );
+            setPixel(x0, y, c);
+        }
+        return;
+    }
+
+    for (int x = x0; x <= x1; x++) {
+        int alpha = (x - x0) * 65536 / (x1 - x0);
+        int u = ((u1 - u0) * alpha + u0 * 65536) >> 16;
+        int v = ((v1 - v0) * alpha + v0 * 65536) >> 16;
+
+        if (u >= 0 && u < textureWidth && v >= 0 && v < textureHeight) {
+            auto texel = texture[u + v * textureWidth];
+            auto c = color(
+                    (0xff & (texel>>16)),
+                    (0xff & (texel>>8)),
+                    (0xff & texel)
+            );
+            setPixel(x, y, c);
+        }
+    }
+}
+
+void drawTriangle(
+    Point2d v0, Point2d v1, Point2d v2,
+    uint32_t *texture, int textureWidth, int textureHeight
+) {
+    if (v0.y > v1.y) swap(v0, v1);
+    if (v0.y > v2.y) swap(v0, v2);
+    if (v1.y > v2.y) swap(v1, v2);
+
+    int totalHeight = v2.y - v0.y;
+
+    // Avoid division by zero
+    if (totalHeight == 0) return;
+
+    // Drawing the upper part of the triangle
+    for (int y = v0.y; y <= v1.y; y++) {
+        int segmentHeight = v1.y - v0.y + 1;
+        int alpha = ((y - v0.y) << 16) / totalHeight;
+        int beta = ((y - v0.y) << 16) / segmentHeight;
+
+        int x0 = v0.x + ((v2.x - v0.x) * alpha >> 16);
+        int x1 = v0.x + ((v1.x - v0.x) * beta >> 16);
+
+        int u0 = v0.u + ((v2.u - v0.u) * alpha >> 16);
+        int u1 = v0.u + ((v1.u - v0.u) * beta >> 16);
+
+        int v0_coord = v0.v + ((v2.v - v0.v) * alpha >> 16);
+        int v1_coord = v0.v + ((v1.v - v0.v) * beta >> 16);
+
+        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight);
+    }
+
+    // Drawing the lower part of the triangle
+    for (int y = v1.y + 1; y <= v2.y; y++) {
+        int segmentHeight = v2.y - v1.y + 1;
+        int alpha = ((y - v0.y) << 16) / totalHeight;
+        int beta = ((y - v1.y) << 16) / segmentHeight;
+
+        int x0 = v0.x + ((v2.x - v0.x) * alpha >> 16);
+        int x1 = v1.x + ((v2.x - v1.x) * beta >> 16);
+
+        int u0 = v0.u + ((v2.u - v0.u) * alpha >> 16);
+        int u1 = v1.u + ((v2.u - v1.u) * beta >> 16);
+
+        int v0_coord = v0.v + ((v2.v - v0.v) * alpha >> 16);
+        int v1_coord = v1.v + ((v2.v - v1.v) * beta >> 16);
+
+        drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight);
+    }
+}
+
+bool DEBUG_TEST(
+#ifdef PC
+    SDL_Texture  *texture,
+    SDL_Renderer *renderer
+#endif
+)
+{
+    return false;
+
+    // True  = RUN ONLY THIS TEST AND STOP AFTERWARDS
+    // False = CONTINUE WITH NORMAL MAIN
+
+    const int16_t OFFSET = 160;
+    const int16_t SIZE = 150;
+
+    /*
+                   v2
+                _ /|
+            _ /    |
+        _ /        |
+      /            |
+    v0 ------------ v1
+    texture png corners
+        (0,0)  (1,0)
+
+        (0,1)  (1,1)
+    */
+
+#define UPPER_HALF
+#ifdef LOWER_HALF
+    // Lower half
+    const float rot_offset = -0.8f;
+    Point2d v0 = {0,0,  gen_textureWidth*0,gen_textureHeight*1};
+    Point2d v1 = {0,0,  gen_textureWidth*1,gen_textureHeight*1};
+    Point2d v2 = {0,0,  gen_textureWidth*1,gen_textureHeight*0};
+#else
+    // Upper half
+    const float rot_offset = +2.35f;
+    Point2d v0 = {0,0,  gen_textureWidth * 1, gen_textureHeight * 0};
+    Point2d v1 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 0};
+    Point2d v2 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 1};
+#endif
+
+#ifdef PC
+    std::cout << "rd_bytes:   0x" << std::hex << 123 << std::endl;
+#else
+    Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", 123);
+#endif
+
+    Fix16 rad1 = Fix16(0.0f+rot_offset);
+    Fix16 rad2 = Fix16(1.57f+rot_offset);
+    Fix16 rad3 = Fix16(3.14f+rot_offset);
+
+#ifdef PC
+    SDL_Event event;
+#endif
+    bool done = false;
+    while (!done)
+    {
+#ifdef PC
+        rad1 += 0.0011f;
+        rad2 += 0.0011f;
+        rad3 += 0.0011f;
+#else
+        rad1 += 0.0011f*29.0f;
+        rad2 += 0.0011f*29.0f;
+        rad3 += 0.0011f*29.0f;
+#endif
+        Fix16 v0_x = rad1.sin() * (float) SIZE;
+        Fix16 v0_y = rad1.cos() * (float) SIZE;
+        Fix16 v1_x = rad2.sin() * (float) SIZE;
+        Fix16 v1_y = rad2.cos() * (float) SIZE;
+        Fix16 v2_x = rad3.sin() * (float) SIZE;
+        Fix16 v2_y = rad3.cos() * (float) SIZE;
+
+        v0.x = (int16_t) v0_x + OFFSET;
+        v0.y = (int16_t) v0_y + OFFSET;
+        v1.x = (int16_t) v1_x + OFFSET;
+        v1.y = (int16_t) v1_y + OFFSET;
+        v2.x = (int16_t) v2_x + OFFSET;
+        v2.y = (int16_t) v2_y + OFFSET;
+
+        fillScreen(FILL_SCREEN_COLOR);
+#ifdef PC
+        drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
+
+        SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_RenderPresent(renderer);
+
+        SDL_PollEvent(&event);
+        switch( event.type ){
+            case SDL_KEYDOWN:
+                switch( event.key.keysym.sym ){
+                    case SDLK_ESCAPE:
+                        done = true;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            /* Keyboard event */
+            case SDL_QUIT:
+                done = true;
+                break;
+            default:
+                break;
+        }
+#else
+        drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
+
+        uint32_t k1,k2; getKey(&k1,&k2);
+        if(testKey(k1,k2,KEY_CLEAR)) {
+            done = true;
+        }
+        LCD_Refresh();
+#endif
+
+    }
+
+    return true;
+    // True  = EXIT
+    // False = CONTINUE
+}
+
 #ifndef PC
 extern "C" void main()
 {
+    bool done = false;
+    p_vram = LCD_GetVRAMAddress();
     calcInit(); //backup screen and init some variables
     if (DEBUG_TEST()){
         while(true){
@@ -309,10 +476,7 @@ extern "C" void main()
 #else
 int main(int argc, const char * argv[])
 {
-    if (DEBUG_TEST()){
-        return 0;
-    }
-
+    bool done = false;
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
     {
         return -1;
@@ -322,8 +486,8 @@ int main(int argc, const char * argv[])
     SDL_Window *window = SDL_CreateWindow("Classpad II PC demo",
                                           SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED,
-                                          SCREEN_X,
-                                          SCREEN_Y,
+                                          SCREEN_X*2,
+                                          SCREEN_Y*2,
                                           SDL_WINDOW_OPENGL);
     if (window == nullptr)
     {
@@ -342,6 +506,10 @@ int main(int argc, const char * argv[])
     SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
     screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
 
+    if (DEBUG_TEST(texture, renderer)){
+        done = true;
+    }
+
     bool key_left = false;
     bool key_right = false;
     bool key_up = false;
@@ -357,21 +525,11 @@ int main(int argc, const char * argv[])
 
 #endif
 
-/*
-#ifdef PC
-    //char model_path[] = "./hi.obj";
-    //char model_path[] = "./test.obj";
-    char model_path[] = "./suzanne.obj";
-#else
-    char model_path[] = "\\fls0\\suzanne.obj";
-    //char model_path[] = "\\fls0\\hi.obj";
-#endif
-*/
     char model_path[] =
 #ifdef PC
-        "./processed_comp.PCObj";
+        "./a_processed_comp.PCObj";
 #else
-        "\\fls0\\processed_calc.PCObj";
+        "\\fls0\\a_processed_calc.PCObj";
 #endif
 
     fillScreen(FILL_SCREEN_COLOR);
@@ -386,43 +544,47 @@ int main(int argc, const char * argv[])
     SDL_RenderPresent(renderer);
 #endif
 
-    #define FLOOR_SIZE   2.5f
-    #define FLOOR_HEIGHT 6.5f
-    fix16_vec3 vertices[] = {
-        {-FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
-        {-FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
-        { FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
-        { FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
-    };
-    unsigned vertex_count = sizeof(vertices)/sizeof(vertices[0]);
-    u_triple faces[] = {
-        {0,1,2},
-        {3,1,2},
-    };
-    unsigned faces_count  = sizeof(faces)/sizeof(faces[0]);
-    Model model_floor = Model(
-        vertices,
-        vertex_count,
-        faces,
-        faces_count
-    );
+    // Floor model
+    // #define FLOOR_SIZE   2.5f
+    // #define FLOOR_HEIGHT 6.5f
+    // fix16_vec3 vertices[] = {
+    //     {-FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
+    //     {-FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
+    //     { FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
+    //     { FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
+    // };
+    // unsigned vertex_count = sizeof(vertices)/sizeof(vertices[0]);
+    // u_triple faces[] = {
+    //     {0,1,2},
+    //     {3,1,2},
+    // };
+    // unsigned faces_count  = sizeof(faces)/sizeof(faces[0]);
+    // Model model_floor = Model(
+    //     vertices,
+    //     vertex_count,
+    //     faces,
+    //     faces_count
+    // );
 
+    // Test obj model
     Model model_test  = Model(model_path);
     model_test.getRotation_ref().y = Fix16(3.145f/2.0f);
 
+    // -----------------
+    // Models to render
     Model* all_models[] = {
-        &model_floor,
+        //&model_floor,
         // &cube1, &testmodel, &model_test
         &model_test
     };
     const unsigned all_model_count = sizeof(all_models) / sizeof(all_models[0]);
 
-    fix16_vec3 camera_pos = {-9.0f, -1.6f, -10.0f};
-    fix16_vec2 camera_rot = {0.8f, 0.2f};
+    fix16_vec3 camera_pos = {-6.0f, -1.6f, -8.0f};
+    fix16_vec2 camera_rot = {0.6f, 0.4f};
 
     Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
 
-    bool done = false;
+
     while(!done)
     {
         fillScreen(FILL_SCREEN_COLOR);
@@ -577,13 +739,15 @@ int main(int argc, const char * argv[])
 #endif
 
 // --------------------------------------------------
+
 #ifdef PC
         all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
-        all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
+        //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
 #else
         all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
-        all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
+        //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
 #endif
+
         for (unsigned m_id=0; m_id<all_model_count; m_id++)
         {
             // For each model..
@@ -609,7 +773,7 @@ int main(int argc, const char * argv[])
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
                 //draw_center_square(x, y, 4,4, color(255,0,0));
-                //setPixel(x, y, color(0,0,0));
+                //_Unsafe_setPixel(x, y, color(0,0,0));
             }
 
             // Init the face_draw_order
@@ -652,11 +816,38 @@ int main(int argc, const char * argv[])
                 ){
                     continue;
                 }
-                auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
+                //auto shade = (ordered_id*(SHADE_MAX-SHADE_MIN))/all_models[m_id]->faces_count;
 
-                uint32_t colorr =
-                    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
+                //uint32_t colorr =
+                //    0xff  << (ordered_id*(24)/all_models[m_id]->faces_count);
 
+                //Point2d v0 = {v0_x,v0_y, gen_textureWidth*0,gen_textureHeight*1};
+                //Point2d v1 = {v1_x,v1_y, gen_textureWidth*1,gen_textureHeight*1};
+                //Point2d v2 = {v2_x,v2_y, gen_textureWidth*1,gen_textureHeight*0};
+
+                auto uv0_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].First];
+                auto uv1_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Second];
+                auto uv2_fix16_norm = all_models[m_id]->uv_coords[all_models[m_id]->uv_faces[f_id].Third];
+
+                auto v0_u = (int16_t) (uv0_fix16_norm.x * (float) gen_textureWidth);
+                auto v0_v = (int16_t) (uv0_fix16_norm.y * (float) gen_textureHeight);
+
+                auto v1_u = (int16_t) (uv1_fix16_norm.x * (float) gen_textureWidth);
+                auto v1_v = (int16_t) (uv1_fix16_norm.y * (float) gen_textureHeight);
+
+                auto v2_u = (int16_t) (uv2_fix16_norm.x * (float) gen_textureWidth);
+                auto v2_v = (int16_t) (uv2_fix16_norm.y * (float) gen_textureHeight);
+
+                Point2d v0 = {v0_x,v0_y, v0_u, v0_v};
+                Point2d v1 = {v1_x,v1_y, v1_u, v1_v};
+                Point2d v2 = {v2_x,v2_y, v2_u, v2_v};
+
+                drawTriangle(
+                    v0, v1, v2,
+                    gen_uv_tex, gen_textureWidth, gen_textureHeight
+                );
+
+                /*
                 triangle(
                     v0_x,v0_y,
                     v1_x,v1_y,
@@ -665,25 +856,6 @@ int main(int argc, const char * argv[])
                         //SHADE_MIN+shade,0,SHADE_MAX-shade
                         (colorr>>16)&0xcf, (colorr>>8)&0xcf, (colorr>>0)&0xcf
                     ),
-                    color(0,0,0)
-                );
-                /*
-                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
-                    color(0,0,0)
-                );
-                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Second].y),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
-                    color(0,0,0)
-                );
-                line((int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].Third].y),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].x),
-                     (int16_t)(screen_coords[all_models[m_id]->faces[f_id].First].y),
                     color(0,0,0)
                 );
                 */

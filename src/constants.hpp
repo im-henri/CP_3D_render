@@ -6,8 +6,8 @@
 #   define _SCREEN_SIZE_MULTIPLIER 1
 #endif
 
-#define SCREEN_X 320*_SCREEN_SIZE_MULTIPLIER
-#define SCREEN_Y 528*_SCREEN_SIZE_MULTIPLIER
+#define SCREEN_X 320
+#define SCREEN_Y 528
 
 
 #ifdef PC

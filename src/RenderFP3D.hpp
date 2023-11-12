@@ -8,6 +8,21 @@ struct int16_t_vec2
     int16_t y;
 };
 
+struct Point2d
+{
+    int16_t x;
+    int16_t y;
+    int16_t u;
+    int16_t v;
+};
+
+struct color8_vec
+{
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+};
+
 struct fix16_vec2
 {
     Fix16 x;

@@ -35,6 +35,8 @@ Model::~Model()
     {
         free(vertices);
         free(faces);
+        free(uv_faces);
+        free(uv_coords);
     }
 }
 
@@ -42,8 +44,8 @@ Model::Model(
     char* fname
 ) : loaded_from_file(false),
     position({0.0f, 0.0f, 0.0f}), rotation({0.0f, 0.0f}), scale({1.0f,1.0f,1.0f}),
-    faces(nullptr), faces_count(0),
-    vertices(nullptr), vertex_count(0)
+    vertices(nullptr), vertex_count(0),
+    faces(nullptr), faces_count(0)
 {
     //loaded_from_file = this->load_from_raw_obj_file(fname);
     loaded_from_file = this->load_from_binary_obj_file(fname);
@@ -67,28 +69,66 @@ fix16_vec3& Model::getScale_ref()
 bool Model::load_from_binary_obj_file(char* fname)
 {
     int fd = open(fname, UNIVERSIAL_FILE_READ );
-    char buff[16] = {0};
-    int rd_bytes;
+    char buff[32] = {0};
 
-    rd_bytes = read(fd, buff, 8+1);
+    read(fd, buff, 31);
     uint32_t vert_count = *((uint32_t*)(buff+0));
     uint32_t face_count = *((uint32_t*)(buff+4));
+    uint32_t uvface_count  = *((uint32_t*)(buff+8));
+    uint32_t uvcoord_count = *((uint32_t*)(buff+12));
+
     //
     this->vertex_count = vert_count;
     this->faces_count = face_count;
-    //
-    unsigned lseek_vert_start = 8;
-    unsigned lseek_face_start = lseek_vert_start + vert_count * 3 * 4;
+    this->uv_face_count = uvface_count;
+    this->uv_coord_count = uvcoord_count;
+    //uvface_count
+    unsigned lseek_vert_start    = 16;
+    unsigned lseek_vert_end      = lseek_vert_start + vert_count * 3 * 4;
+
+    unsigned lseek_face_start    = lseek_vert_end;
+    unsigned lseek_face_end      = lseek_face_start + faces_count * 3 * 4;
+
+    unsigned lseek_uvface_start  = lseek_face_end;
+    unsigned lseek_uvface_end    = lseek_uvface_start + uv_face_count * 3 * 4;
+
+    unsigned lseek_uvcoord_start = lseek_uvface_end;
 
     // Read binary to vertices
     lseek(fd, lseek_vert_start, SEEK_SET);
     this->vertices = (fix16_vec3*) malloc(sizeof(fix16_vec3) * this->vertex_count);
-    rd_bytes = read(fd, this->vertices, vert_count*3*4); // vert_count(?x) * x,y,z(3x) * 32b Fix16 (4bytes)
+    read(fd, this->vertices, vert_count*3*4);   // vert_count(?x) * x,y,z(3x) * 32b Fix16 (4bytes)
+
     // Read binary to faces
     lseek(fd, lseek_face_start, SEEK_SET);
     this->faces    = (u_triple*)   malloc(sizeof(u_triple)   * this->faces_count);
-    rd_bytes = read(fd, this->faces, face_count*3*4);   // face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
+    read(fd, this->faces, face_count*3*4);      // face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
 
+    // Read binary to uv faces
+    lseek(fd, lseek_uvface_start, SEEK_SET);
+    this->uv_faces = (u_triple*)   malloc(sizeof(u_triple)   * this->uv_face_count);
+    read(fd, this->uv_faces, uvface_count*3*4); // uv_face_count(?x) * v0 v1 v2 (3x) * 32b unsigned (4bytes)
+
+    // Read binary to uv coords
+    lseek(fd, lseek_uvcoord_start, SEEK_SET);
+    this->uv_coords = (fix16_vec2*) malloc(sizeof(fix16_vec2) * this->uv_coord_count);
+    read(fd, this->uv_coords, uv_coord_count*2*4);   // uv_coord_count(?x) * u,v(2x) * 32b Fix16 (4bytes)
+
+#ifdef PC
+    for (int i=0;i<uv_coord_count; i++){
+        std::cout << "uv(" << i << "): x = "
+                 << (float) uv_coords[i].x
+                 << " y = " << (float) uv_coords[i].y
+                 << std::endl;
+    }
+    for (int i=0;i<uv_face_count; i++){
+        std::cout << "uv_face(" << i << "):"
+                 << " id0 = " << uv_faces[i].First
+                 << " id1 = " << uv_faces[i].Second
+                 << " id2 = " << uv_faces[i].Third
+                 << std::endl;
+    }
+#endif
     return true;
 }
 bool Model::load_from_raw_obj_file(char* fname)

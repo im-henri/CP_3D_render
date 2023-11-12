@@ -38,6 +38,11 @@ public:
     u_triple*   faces;
     unsigned    faces_count;
 
+    fix16_vec2* uv_coords;
+    unsigned    uv_coord_count;
+    u_triple*   uv_faces;
+    unsigned    uv_face_count;
+
     fix16_vec3& getPosition_ref();
     fix16_vec2& getRotation_ref();
     fix16_vec3& getScale_ref();
