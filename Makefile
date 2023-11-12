@@ -13,7 +13,8 @@ SUB_DIRS := $(shell find $(SRC_DIR) -type d)  # List of subdirectories in SRC_DI
 
 SUB_DIRS_FOLDER_ONLY := $(shell cd $(SRC_DIR) && find . -type d | sed 's,^[^/]*/,,'  | sed -e 's/^/$(BUILD_DIR)\//')  # List of subdirectories in SRC_DIR
 
-APP_ELF := $(APP_NAME).hhk
+APP_ELF:=$(APP_NAME).hhk
+APP_BIN:=$(APP_NAME).bin
 
 # Global defines
 FIXPOINT_DEFS := -DFIXMATH_NO_CACHE -DFIXMATH_NO_CTYPE -DFIXMATH_NO_HARD_DIVISION -DFIXMATH_NO_64BIT
@@ -48,14 +49,16 @@ CXX_OBJECTS := $(sort $(CXX_OBJECTS))
 OBJECTS := $(AS_OBJECTS) $(CC_OBJECTS) $(CXX_OBJECTS)
 
 # Targets
-.PHONY: all hhk clean
+.PHONY: all bin clean
 
-all: $(APP_ELF)
+all: $(APP_BIN) Makefile
 
-hhk: $(APP_ELF)
+#hhk: $(APP_ELF)
+
+bin: $(APP_BIN) Makefile
 
 clean:
-	rm -f $(APP_ELF) $(OBJECTS)
+	rm -f $(APP_ELF) $(APP_BIN) $(OBJECTS)
 	rm -rf $(BUILD_DIR)
 
 PC: all
@@ -68,6 +71,9 @@ $(APP_ELF): $(OBJECTS) $(SDK_DIR)/sdk.o $(LINKER_DIR)/linker_hhk.ld
 	$(OBJCOPY) --set-section-flags .hollyhock_description=contents,strings,readonly $(APP_ELF) $(APP_ELF)
 	$(OBJCOPY) --set-section-flags .hollyhock_author=contents,strings,readonly $(APP_ELF) $(APP_ELF)
 	$(OBJCOPY) --set-section-flags .hollyhock_version=contents,strings,readonly $(APP_ELF) $(APP_ELF)
+
+$(APP_BIN): $(OBJECTS) $(SDK_DIR)/sdk.o $(LINKER_DIR)/linker_bin.ld
+	$(LD) --oformat binary -T $(LINKER_DIR)/linker_bin.ld -o $@ $(LD_FLAGS) $(OBJECTS) $(SDK_DIR)/sdk.o
 
 # Rule to compile assembly source files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.s | $(BUILD_DIR)
