@@ -226,6 +226,74 @@ void bubble_sort(uint_fix16_t a[], int n) {
                 swap(a[i - 1], a[i]);
 }
 
+void heapify(uint_fix16_t arr[], int N, int i)
+{
+    // Initialize largest as root
+    int largest = i;
+    // left = 2*i + 1
+    int l = 2 * i + 1;
+    // right = 2*i + 2
+    int r = 2 * i + 2;
+    // If left child is larger than root
+    if (l < N && arr[l].fix16 < arr[largest].fix16)
+        largest = l;
+    // If right child is larger than largest
+    // so far
+    if (r < N && arr[r].fix16 < arr[largest].fix16)
+        largest = r;
+    // If largest is not root
+    if (largest != i) {
+        swap(arr[i], arr[largest]);
+        // Recursively heapify the affected
+        // sub-tree
+        heapify(arr, N, largest);
+    }
+}
+
+// Main function to do heap sort
+void heapSort(uint_fix16_t arr[], int N)
+{
+    // Build heap (rearrange array)
+    for (int i = N / 2 - 1; i >= 0; i--)
+        heapify(arr, N, i);
+    // One by one extract an element
+    // from heap
+    for (int i = N - 1; i > 0; i--) {
+        // Move current root to end
+        swap(arr[0], arr[i]);
+        // call max heapify on the reduced heap
+        heapify(arr, i, 0);
+    }
+}
+
+/* function to sort arr using shellSort */
+int shellSort(uint_fix16_t arr[], int n)
+{
+    // Start with a big gap, then reduce the gap
+    for (int gap = n/2; gap > 0; gap /= 2)
+    {
+        // Do a gapped insertion sort for this gap size.
+        // The first gap elements a[0..gap-1] are already in gapped order
+        // keep adding one more element until the entire array is
+        // gap sorted
+        for (int i = gap; i < n; i += 1)
+        {
+            // add a[i] to the elements that have been gap sorted
+            // save a[i] in temp and make a hole at position i
+            auto temp = arr[i];
+            // shift earlier gap-sorted elements up until the correct
+            // location for a[i] is found
+            int j;
+            for (j = i; j >= gap && arr[j - gap].fix16 < temp.fix16; j -= gap)
+                arr[j] = arr[j - gap];
+
+            //  put temp (the original a[i]) in its correct location
+            arr[j] = temp;
+        }
+    }
+    return 0;
+}
+
 void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight) {
     if (x0 > x1) {
         swap(x0, x1);
@@ -880,10 +948,10 @@ int main(int argc, const char * argv[])
             camera_pos.z -= camera_rot.x.cos()*0.025f;
         }
         if (key_r){
-            camera_pos.y -= 0.006f;
+            camera_pos.y -= 0.025f;
         }
         if (key_f){
-            camera_pos.y += 0.006f;
+            camera_pos.y += 0.025f;
         }
 
         if (key_a){
@@ -943,8 +1011,6 @@ int main(int argc, const char * argv[])
                     int16_t x = (int16_t)screen_vec2.x;
                     int16_t y = (int16_t)screen_vec2.y;
                     screen_coords[v_id] = {x, y};
-                    //draw_center_square(x, y, 4,4, color(255,0,0));
-                    //setPixel(x, y, color(0,0,0));
                 }
 
                 // Init the face_draw_order
@@ -966,6 +1032,8 @@ int main(int argc, const char * argv[])
                 }
                 // Sorting
                 bubble_sort(face_draw_order, all_models[m_id]->faces_count);
+                //heapSort(face_draw_order, all_models[m_id]->faces_count);
+                //shellSort(face_draw_order, all_models[m_id]->faces_count);
 
                 // Draw face edges
                 #define SHADE_MAX 255
