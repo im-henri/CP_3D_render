@@ -6,7 +6,7 @@
 #   include <iostream>
 #endif
 
-inline void rotateOnPlane(
+void rotateOnPlane(
     Fix16& a, Fix16& b,
     Fix16 radians
 ) {

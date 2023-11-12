@@ -442,6 +442,36 @@ bool DEBUG_TEST(
 //     // False = CONTINUE
 }
 
+void draw_RotationVisualizer(fix16_vec2 camera_rot)
+{
+    const float line_width = 20.0f;
+    const int16_t right_edge_offset = 15;
+    // Points to rotate
+    fix16_vec3 p_x     = {line_width,  0.0f,  0.0f};
+    fix16_vec3 p_y     = { 0.0f, -line_width,  0.0f};
+    fix16_vec3 p_z     = { 0.0f,  0.0f, line_width};
+    // Rotations - x
+    rotateOnPlane(p_x.x, p_x.z, camera_rot.x);
+    rotateOnPlane(p_x.y, p_x.z, camera_rot.y);
+    // Rotations - y
+    rotateOnPlane(p_y.x, p_y.z, camera_rot.x);
+    rotateOnPlane(p_y.y, p_y.z, camera_rot.y);
+    // Rotations - z
+    rotateOnPlane(p_z.x, p_z.z, camera_rot.x);
+    rotateOnPlane(p_z.y, p_z.z, camera_rot.y);
+    // Make sure there is no division with zero
+    if (p_x.z == 0.0f) p_x.z = 0.001f;
+    if (p_y.z == 0.0f) p_y.z = 0.001f;
+    if (p_z.z == 0.0f) p_z.z = 0.001f;
+    // Where to draw
+    const auto offset_x = SCREEN_X - right_edge_offset - (int16_t) line_width;
+    const auto offset_y =            right_edge_offset + (int16_t) line_width;
+    // Draw actual lines
+    line(((int16_t) p_x.x)+offset_x,((int16_t) p_x.y)+offset_y, offset_x, offset_y, color(255,0,0));
+    line(((int16_t) p_y.x)+offset_x,((int16_t) p_y.y)+offset_y, offset_x, offset_y, color(0,255,0));
+    line(((int16_t) p_z.x)+offset_x,((int16_t) p_z.y)+offset_y, offset_x, offset_y, color(0,0,255));
+}
+
 #ifndef PC
 extern "C" void main()
 {
@@ -1216,6 +1246,10 @@ int main(int argc, const char * argv[])
 
             }
         }
+
+        // Draw rotation visualizer in corner
+        draw_RotationVisualizer(camera_rot);
+
 // --------------------------------------------------
 
         // ----- Refresh screen -----
