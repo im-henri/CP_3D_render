@@ -6,6 +6,9 @@
 # make PC binary
 pc_out
 
+# Python cache
+/python/__pycache__/*
+
 # Not tracked folder
 not_tracked/*
 

@@ -780,16 +780,16 @@ int main(int argc, const char * argv[])
 
     char model_path[] =
 #ifdef PC
-        "./a_processed_comp.PCObj";
+        "./little_endian.pkObj";
 #else
-        "\\fls0\\a_processed_calc.PCObj";
+        "\\fls0\\big_endian.pkObj";
 #endif
 
     char model_texture_path[] =
 #ifdef PC
-        "./a_processed_comp.texture";
+        "./little_endian.texture";
 #else
-        "\\fls0\\a_processed_calc.texture";
+        "\\fls0\\big_endian.texture";
 #endif
 
     fillScreen(FILL_SCREEN_COLOR);
@@ -1058,6 +1058,10 @@ int main(int argc, const char * argv[])
         {
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
+                // Check first if model has texture
+                if (all_models[m_id]->uv_coord_count == 0){
+                    continue;
+                }
                 // For each model..
                 // Allocate memory first:
                 //   1. Screen coordinates
@@ -1193,6 +1197,10 @@ int main(int argc, const char * argv[])
         else if (RENDER_MODE == 1){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
+                // Check first if model has texture
+                if (all_models[m_id]->uv_coord_count == 0){
+                    continue;
+                }
                 // For each model..
                 // Allocate memory first:
                 //   1. Screen coordinates
