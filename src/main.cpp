@@ -9,199 +9,38 @@
 
 #include "StringUtils.hpp"
 
-//#include "gen_uv_tex.hpp"
+#include "Utils.hpp"
 
 #ifndef PC
-    #include "app_description.hpp"
-    #include <sdk/calc/calc.hpp>
-    #include <sdk/os/lcd.hpp>
-    #include <sdk/os/debug.hpp>
-    #include <sdk/os/mem.hpp>
-    #include <sdk/os/file.hpp>
-    #include "fps_functions.hpp"
+#   include "app_description.hpp"
+#   include <sdk/calc/calc.hpp>
+#   include <sdk/os/lcd.hpp>
+#   include <sdk/os/debug.hpp>
+#   include <sdk/os/mem.hpp>
+#   include <sdk/os/file.hpp>
+#   include "fps_functions.hpp"
 #else
+    // SDL2 as our graphics library
 #   include <SDL2/SDL.h>
+    // This is not a standard "header"! These functions are pretty
+    // much 1-to-1 copied from hollyhock2 sdk but instead of drawing
+    // to calculator screen (vram) it draws to SDL2 screen (texture)
+#   include "PC_SDL_screen.hpp"
 #   include <iostream>
 #   include <unistd.h>  // File open & close
 #   include <fcntl.h>   // File open & close
 #endif
 
+#ifdef PC
+    typedef uint32_t color_t;
+#else
+    typedef uint16_t color_t;
+#endif
+
 #define FILL_SCREEN_COLOR color(190,190,190)
 
-//
-// ----------------------
-//
-
-// Since endianess differ on PC and CP using ifdef
-// to define PC that turns manually bytes into value.
-inline uint32_t ByteArrToUint32_t(char* bytes)
+fix16_vec3 crossProduct(const fix16_vec3& a, const fix16_vec3& b)
 {
-#ifdef PC
-    return   ((uint32_t) ((unsigned char*) bytes)[3]) << 0*8 |
-             ((uint32_t) ((unsigned char*) bytes)[2]) << 1*8 |
-             ((uint32_t) ((unsigned char*) bytes)[1]) << 2*8 |
-             ((uint32_t) ((unsigned char*) bytes)[0]) << 3*8;
-#else
-    return *((uint32_t*)(bytes));
-#endif
-}
-
-//
-// ----------------------
-//
-
-#ifdef PC
-Uint32 * screenPixels;
-#endif
-
-#ifdef PC
-void setPixel(int x, int y, uint32_t color)
-{
-    if(x>=0 && x < SCREEN_X && y>=0 && y < SCREEN_Y)
-        screenPixels[y * SCREEN_X + x] = color;
-}
-//void LCD_ClearScreen()
-void LCD_ClearScreen()
-{
-    memset(screenPixels, 255, SCREEN_X * SCREEN_Y * sizeof(Uint32));
-}
-inline uint32_t color(uint8_t R, uint8_t G, uint8_t B){
-    return ((R<<8*2) | (G<<8*1) | (B<<8*0));
-}
-
-void fillScreen(uint32_t color)
-{
-    for (int x=0; x<SCREEN_X; x++){
-        for (int y=0; y<SCREEN_Y; y++){
-            setPixel(x,y,color);
-        }
-    }
-}
-
-//Draw a line (bresanham line algorithm)
-void line(int x1, int y1, int x2, int y2, uint32_t color){
-    int8_t ix, iy;
-
-    int dx = (x2>x1 ? (ix=1, x2-x1) : (ix=-1, x1-x2) );
-    int dy = (y2>y1 ? (iy=1, y2-y1) : (iy=-1, y1-y2) );
-
-    setPixel(x1,y1,color);
-    if(dx>=dy){ //the derivative is less than 1 (not so steep)
-        //y1 is the whole number of the y value
-        //error is the fractional part (times dx to make it a whole number)
-        // y = y1 + (error/dx)
-        //if error/dx is greater than 0.5 (error is greater than dx/2) we add 1 to y1 and subtract dx from error (so error/dx is now around -0.5)
-        int error = 0;
-        while (x1!=x2) {
-            x1 += ix; //go one step in x direction
-            error += dy;//add dy/dx to the y value.
-            if (error>=(dx>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
-                y1+=iy;
-                error-=dx;
-            }
-            setPixel(x1,y1,color);
-        }
-    }else{ //the derivative is greater than 1 (very steep)
-        int error = 0;
-        while (y1!=y2) { //The same thing, just go up y and look at x
-            y1 += iy; //go one step in y direction
-            error += dx;//add dx/dy to the x value.
-            if (error>=(dy>>1)){ //If error is greater than dx/2 (error/dx is >=0.5)
-                x1+=ix;
-                error-=dy;
-            }
-            setPixel(x1,y1,color);
-        }
-    }
-}
-void vline(int x, int y1, int y2, uint32_t color){ //vertical line needed for triangle()
-    if (y1>y2) { int z=y2; y2=y1; y1=z;}
-    for (int y=y1; y<=y2; y++)
-        setPixel(x,y,color);
-}
-
-//Draw a filled triangle.
-void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colorFill, uint32_t colorLine){
-//Filled triangles are a lot of vertical lines.
-/*                                                               -
-                        a   ___________----------P3              -
-       P0 _________---------              ____---                -
-          ---____               _____-----                       -
-               b ----___  _-----   c                             -
-                        P2                                       -
-The triangle has three points P0, P1 and P2 and three lines a, b and c. We go from left to right, calculating the point on a and the point on b or c and then we draw a vertical line connecting these two.
-*/
-
-    //Sort the points by x coordinate
-    {
-        int z;
-        if(x0>x2){ z=x2; x2=x0; x0=z; z=y2; y2=y0; y0=z; }
-        if(x1>x2){ z=x2; x2=x1; x1=z; z=y2; y2=y1; y1=z; }
-        if(x0>x1){ z=x1; x1=x0; x0=z; z=y1; y1=y0; y0=z; }
-    }
-
-    int x = x0; //x is the variable that counts from left to right
-
-    //Values for line a
-    int ay = y0; //The point y for the current x on the line a
-    int aiy; //The direction of line a
-    int adx = (x2>x0 ? (       x2-x0) : (        x0-x2) );
-    int ady = (y2>y0 ? (aiy=1, y2-y0) : (aiy=-1, y0-y2) );
-    int aerr = 0; //The y value of a (fractional part). y is actually ay+(aerr/adx)
-
-    //Values for line b
-    int by = y0; //The point y for the current x on the line b
-    int biy; //The direction of line b
-    int bdx = (x1>x0 ? (       x1-x0) : (        x0-x1) );
-    int bdy = (y1>y0 ? (biy=1, y1-y0) : (biy=-1, y0-y1) );
-    int berr = 0;
-
-    //Values for line c
-    int cy = y1; //The point y for the current x on the line y (starting at P1)
-    int ciy; //The direction of line c
-    int cdx = (x2>x1 ? (       x2-x1) : (        x1-x2) );
-    int cdy = (y2>y1 ? (ciy=1, y2-y1) : (ciy=-1, y1-y2) );
-    int cerr = 0;
-
-    //First draw area between a and b
-    while (x<x1){
-        x++;
-        aerr+=ady;
-        while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
-            aerr-=adx;
-            ay+=aiy;
-        }
-        berr+=bdy;
-        while(berr>=bdx >> 2){ //if berr/bdx >= 0.5
-            berr-=bdx;
-            by+=biy;
-        }
-        vline(x,ay,by,colorFill);
-    }
-
-    //Then draw area between a and c
-    while (x<x2-1){ //we don't need x=x2, bacause x should already have the right vaue...
-        x++;
-        aerr+=ady;
-        while(aerr>=adx >> 2){ //if aerr/adx >= 0.5
-            aerr-=adx;
-            ay+=aiy;
-        }
-        cerr+=cdy;
-        while(cerr>=cdx >> 2){ //if berr/bdx >= 0.5
-            cerr-=cdx;
-            cy+=ciy;
-        }
-        vline(x,ay,cy,colorFill);
-    }
-
-    line(x0,y0,x1,y1,colorLine);
-    line(x1,y1,x2,y2,colorLine);
-    line(x2,y2,x0,y0,colorLine);
-}
-#endif
-
-fix16_vec3 crossProduct(const fix16_vec3& a, const fix16_vec3& b) {
     fix16_vec3 result;
     result.x = a.y * b.z - a.z * b.y;
     result.y = a.z * b.x - a.x * b.z;
@@ -209,22 +48,24 @@ fix16_vec3 crossProduct(const fix16_vec3& a, const fix16_vec3& b) {
     return result;
 }
 
-fix16_vec3 calculateNormal(const fix16_vec3& v0, const fix16_vec3& v1, const fix16_vec3& v2) {
+fix16_vec3 calculateNormal(const fix16_vec3& v0, const fix16_vec3& v1, const fix16_vec3& v2)
+{
     fix16_vec3 edge1 = {v1.x - v0.x, v1.y - v0.y, v1.z - v0.z};
     fix16_vec3 edge2 = {v2.x - v0.x, v2.y - v0.y, v2.z - v0.z};
-
     return crossProduct(edge1, edge2);
 }
 
 // Normalize a vector
-void normalize_fix16_vec3(fix16_vec3& vec) {
+void normalize_fix16_vec3(fix16_vec3& vec)
+{
     Fix16 length = fix16_sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
     vec.x /= length;
     vec.y /= length;
     vec.z /= length;
 }
 
-Fix16 calculateLightIntensity(const fix16_vec3& lightPos, const fix16_vec3& surfacePos, const fix16_vec3& normal, Fix16 lightIntensity) {
+Fix16 calculateLightIntensity(const fix16_vec3& lightPos, const fix16_vec3& surfacePos, const fix16_vec3& normal, Fix16 lightIntensity)
+{
     fix16_vec3 lightDir = {lightPos.x - surfacePos.x, lightPos.y - surfacePos.y, lightPos.z - surfacePos.z};
     normalize_fix16_vec3(lightDir);
 
@@ -233,13 +74,8 @@ Fix16 calculateLightIntensity(const fix16_vec3& lightPos, const fix16_vec3& surf
     return intensity;
 }
 
-void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy,
-#ifdef PC
-uint32_t color
-#else
-uint16_t color
-#endif
-) {
+void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, color_t color)
+{
     for(int16_t i=-sx/2; i<sx/2; i++)
     {
         for(int16_t j=-sy/2; j<sy/2; j++)
@@ -249,89 +85,8 @@ uint16_t color
     }
 }
 
-template <class T>
-inline void swap(T& a, T& b) {
-    T tmp = b;
-    b = a;
-    a = tmp;
-}
-
-void bubble_sort(uint_fix16_t a[], int n) {
-    for (int j = n; j > 1; --j)
-        for (int i = 1; i < j; ++i)
-            if (a[i - 1].fix16 < a[i].fix16)
-                swap(a[i - 1], a[i]);
-}
-
-void heapify(uint_fix16_t arr[], int N, int i)
+void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight, Fix16 lightInstensity = 1.0f)
 {
-    // Initialize largest as root
-    int largest = i;
-    // left = 2*i + 1
-    int l = 2 * i + 1;
-    // right = 2*i + 2
-    int r = 2 * i + 2;
-    // If left child is larger than root
-    if (l < N && arr[l].fix16 < arr[largest].fix16)
-        largest = l;
-    // If right child is larger than largest
-    // so far
-    if (r < N && arr[r].fix16 < arr[largest].fix16)
-        largest = r;
-    // If largest is not root
-    if (largest != i) {
-        swap(arr[i], arr[largest]);
-        // Recursively heapify the affected
-        // sub-tree
-        heapify(arr, N, largest);
-    }
-}
-
-// Main function to do heap sort
-void heapSort(uint_fix16_t arr[], int N)
-{
-    // Build heap (rearrange array)
-    for (int i = N / 2 - 1; i >= 0; i--)
-        heapify(arr, N, i);
-    // One by one extract an element
-    // from heap
-    for (int i = N - 1; i > 0; i--) {
-        // Move current root to end
-        swap(arr[0], arr[i]);
-        // call max heapify on the reduced heap
-        heapify(arr, i, 0);
-    }
-}
-
-/* function to sort arr using shellSort */
-int shellSort(uint_fix16_t arr[], int n)
-{
-    // Start with a big gap, then reduce the gap
-    for (int gap = n/2; gap > 0; gap /= 2)
-    {
-        // Do a gapped insertion sort for this gap size.
-        // The first gap elements a[0..gap-1] are already in gapped order
-        // keep adding one more element until the entire array is
-        // gap sorted
-        for (int i = gap; i < n; i += 1)
-        {
-            // add a[i] to the elements that have been gap sorted
-            // save a[i] in temp and make a hole at position i
-            auto temp = arr[i];
-            // shift earlier gap-sorted elements up until the correct
-            // location for a[i] is found
-            int j;
-            for (j = i; j >= gap && arr[j - gap].fix16 < temp.fix16; j -= gap)
-                arr[j] = arr[j - gap];
-
-            //  put temp (the original a[i]) in its correct location
-            arr[j] = temp;
-        }
-    }
-    return 0;
-}
-
-void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight, Fix16 lightInstensity = 1.0f) {
     if (x0 > x1) {
         swap(x0, x1);
         swap(u0, u1);
@@ -437,10 +192,8 @@ bool DEBUG_TEST(
 
     // True  = RUN ONLY THIS TEST AND STOP AFTERWARDS
     // False = CONTINUE WITH NORMAL MAIN
-
 //     const int16_t OFFSET = 160;
 //     const int16_t SIZE = 150;
-
 //     /*
 //                    v2
 //                 _ /|
@@ -450,10 +203,9 @@ bool DEBUG_TEST(
 //     v0 ------------ v1
 //     texture png corners
 //         (0,0)  (1,0)
-
+//
 //         (0,1)  (1,1)
 //     */
-
 // #define UPPER_HALF
 // #ifdef LOWER_HALF
 //     // Lower half
@@ -468,17 +220,14 @@ bool DEBUG_TEST(
 //     Point2d v1 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 0};
 //     Point2d v2 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 1};
 // #endif
-
 // #ifdef PC
 //     std::cout << "rd_bytes:   0x" << std::hex << 123 << std::endl;
 // #else
 //     Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", 123);
 // #endif
-
 //     Fix16 rad1 = Fix16(0.0f+rot_offset);
 //     Fix16 rad2 = Fix16(1.57f+rot_offset);
 //     Fix16 rad3 = Fix16(3.14f+rot_offset);
-
 // #ifdef PC
 //     SDL_Event event;
 // #endif
@@ -500,23 +249,19 @@ bool DEBUG_TEST(
 //         Fix16 v1_y = rad2.cos() * (float) SIZE;
 //         Fix16 v2_x = rad3.sin() * (float) SIZE;
 //         Fix16 v2_y = rad3.cos() * (float) SIZE;
-
 //         v0.x = (int16_t) v0_x + OFFSET;
 //         v0.y = (int16_t) v0_y + OFFSET;
 //         v1.x = (int16_t) v1_x + OFFSET;
 //         v1.y = (int16_t) v1_y + OFFSET;
 //         v2.x = (int16_t) v2_x + OFFSET;
 //         v2.y = (int16_t) v2_y + OFFSET;
-
 //         fillScreen(FILL_SCREEN_COLOR);
 // #ifdef PC
 //         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
-
 //         SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
 //         SDL_RenderClear(renderer);
 //         SDL_RenderCopy(renderer, texture, NULL, NULL);
 //         SDL_RenderPresent(renderer);
-
 //         SDL_PollEvent(&event);
 //         switch( event.type ){
 //             case SDL_KEYDOWN:
@@ -537,16 +282,13 @@ bool DEBUG_TEST(
 //         }
 // #else
 //         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
-
 //         uint32_t k1,k2; getKey(&k1,&k2);
 //         if(testKey(k1,k2,KEY_CLEAR)) {
 //             done = true;
 //         }
 //         LCD_Refresh();
 // #endif
-
 //     }
-
 //     return true;
 //     // True  = EXIT
 //     // False = CONTINUE
@@ -803,28 +545,6 @@ int main(int argc, const char * argv[])
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 #endif
-
-    // Floor model
-    // #define FLOOR_SIZE   2.5f
-    // #define FLOOR_HEIGHT 6.5f
-    // fix16_vec3 vertices[] = {
-    //     {-FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
-    //     {-FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
-    //     { FLOOR_SIZE,  FLOOR_HEIGHT, -FLOOR_SIZE},
-    //     { FLOOR_SIZE,  FLOOR_HEIGHT,  FLOOR_SIZE},
-    // };
-    // unsigned vertex_count = sizeof(vertices)/sizeof(vertices[0]);
-    // u_triple faces[] = {
-    //     {0,1,2},
-    //     {3,1,2},
-    // };
-    // unsigned faces_count  = sizeof(faces)/sizeof(faces[0]);
-    // Model model_floor = Model(
-    //     vertices,
-    //     vertex_count,
-    //     faces,
-    //     faces_count
-    // );
 
     // Test obj model
     Model model_test  = Model(model_path, model_texture_path);
