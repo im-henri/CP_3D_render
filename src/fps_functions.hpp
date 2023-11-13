@@ -13,7 +13,7 @@
 
 uint8_t *R64CNT = (uint8_t*)0xA413FEC0;
 uint8_t prevtime = 0;
-int fps10 = 0;
+int fps10 = 10;
 char fps_formatted[9];
 
 void fps_update() {
@@ -31,7 +31,7 @@ void fps_formatted_update() {
     uint8_t dec01_0 = 0;
     uint8_t dec10_0 = 0;
     while (dec00_1 >= 100) { dec00_1-= 100; dec10_0++; }
-    while (dec00_1 >= 10) { dec00_1-=  10; dec01_0++; }
+    while (dec00_1 >= 10)  { dec00_1-=  10; dec01_0++; }
     strcpy(fps_formatted, "  .  FPS");
     fps_formatted[0] = dec10_0 + 48;
     fps_formatted[1] = dec01_0 + 48;

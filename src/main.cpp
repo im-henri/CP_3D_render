@@ -22,20 +22,61 @@
 #else
     // SDL2 as our graphics library
 #   include <SDL2/SDL.h>
-    // This is not a standard "header"! These functions are pretty
-    // much 1-to-1 copied from hollyhock2 sdk but instead of drawing
-    // to calculator screen (vram) it draws to SDL2 screen (texture)
-#   include "PC_SDL_screen.hpp"
-#   include <iostream>
+    // This is not a standard "header"!
+    // These functions are pretty much 1-to-1 copied from hollyhock2
+    // sdk but instead of drawing to calculator screen (vram)
+    // it draws to SDL2 screen (texture).
+#   include "PC_SDL_screen.hpp" // replaces "sdk/os/lcd.hpp"
+#   include <iostream>  // std::string
 #   include <unistd.h>  // File open & close
 #   include <fcntl.h>   // File open & close
 #endif
 
-#ifdef PC
-    typedef uint32_t color_t;
+#ifndef PC
+#   define KEY_MOVE_LEFT       testKey(k1,k2,KEY_4)
+#   define KEY_MOVE_RIGHT      testKey(k1,k2,KEY_6)
+#   define KEY_MOVE_FORWARD    testKey(k1,k2,KEY_8)
+#   define KEY_MOVE_BACKWARD   testKey(k1,k2,KEY_2)
+#   define KEY_MOVE_UP         testKey(k1,k2,KEY_9)
+#   define KEY_MOVE_DOWN       testKey(k1,k2,KEY_3)
+#   define KEY_MOVE_FOV_ADD    testKey(k1,k2,KEY_ADD)
+#   define KEY_MOVE_FOV_SUB    testKey(k1,k2,KEY_SUBTRACT)
+#   define KEY_MOVE_REND_MODE  testKey(k1,k2,KEY_0)
+#   define KEY_ROTATE_LEFT     testKey(k1,k2,KEY_LEFT)
+#   define KEY_ROTATE_RIGHT    testKey(k1,k2,KEY_RIGHT)
+#   define KEY_ROTATE_UP       testKey(k1,k2,KEY_UP)
+#   define KEY_ROTATE_DOWN     testKey(k1,k2,KEY_DOWN)
 #else
-    typedef uint16_t color_t;
+#   define KEY_MOVE_LEFT       key_left
+#   define KEY_MOVE_RIGHT      key_right
+#   define KEY_MOVE_FORWARD    key_up
+#   define KEY_MOVE_BACKWARD   key_down
+#   define KEY_MOVE_UP         key_r
+#   define KEY_MOVE_DOWN       key_f
+#   define KEY_MOVE_FOV_ADD    key_1
+#   define KEY_MOVE_FOV_SUB    key_2
+#   define KEY_MOVE_REND_MODE  key_e
+#   define KEY_ROTATE_LEFT     key_a
+#   define KEY_ROTATE_RIGHT    key_d
+#   define KEY_ROTATE_UP       key_w
+#   define KEY_ROTATE_DOWN     key_s
 #endif
+
+
+#ifdef PC
+    typedef uint32_t color_t; // SDL2 uses 32b colors (24b colors + 8b alpha). Alpha not used.
+#else
+    typedef uint16_t color_t; // ClassPad uses 16b colors
+#endif
+
+#ifndef PC
+// fps10 from "fps_functions.hpp" in calculator case
+extern int fps10;
+#endif
+
+#define MOVEMENT_SPEED   20.0f
+#define CAMERA_SPEED      1.5f
+#define FOV_UPDATE_SPEED 50.0f
 
 #define FILL_SCREEN_COLOR color(190,190,190)
 
@@ -85,8 +126,12 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, color_t 
     }
 }
 
-void drawHorizontalLine(int x0, int x1, int y, int u0, int u1, int v0, int v1, uint32_t *texture, int textureWidth, int textureHeight, Fix16 lightInstensity = 1.0f)
-{
+void drawHorizontalLine(
+    int x0, int x1, int y,
+    int u0, int u1, int v0, int v1,
+    uint32_t *texture, int textureWidth, int textureHeight,
+    Fix16 lightInstensity = 1.0f
+) {
     if (x0 > x1) {
         swap(x0, x1);
         swap(u0, u1);
@@ -340,9 +385,8 @@ void draw_SunLocation(Fix16 FOV, fix16_vec3 lightPos, fix16_vec3 camera_pos, fix
 }
 
 #ifndef PC
-extern "C" void main()
+void custom_init()
 {
-    bool done = false;
     calcInit(); //backup screen and init some variables
     if (DEBUG_TEST()){
         while(true){
@@ -354,156 +398,59 @@ extern "C" void main()
         calcEnd(); //restore screen and do stuff
         return;
     }
+}
 #else
-int drawCharacter(char character, int x, int y, Uint32* screenPixels) {
-    const int BITMAP_SIZE = 6;
-    const int SIZE_MULTIPLIER = 2;
-    const char* bitmapNumbers6x6[] = {
-        // 0
-        "011110"
-        "100001"
-        "100001"
-        "100001"
-        "100001"
-        "011110",
-
-        // 1
-        "001000"
-        "011000"
-        "001000"
-        "001000"
-        "001000"
-        "111111",
-
-        // 2
-        "011110"
-        "100001"
-        "000010"
-        "000100"
-        "001000"
-        "111111",
-
-        // 3
-        "011110"
-        "100001"
-        "000110"
-        "000001"
-        "100001"
-        "011110",
-
-        // 4
-        "000100"
-        "001100"
-        "010100"
-        "111111"
-        "000100"
-        "000100",
-
-        // 5
-        "111111"
-        "100000"
-        "111110"
-        "000001"
-        "100001"
-        "011110",
-
-        // 6
-        "011110"
-        "100001"
-        "100000"
-        "111110"
-        "100001"
-        "011110",
-
-        // 7
-        "111111"
-        "000001"
-        "000010"
-        "000100"
-        "001000"
-        "010000",
-
-        // 8
-        "011110"
-        "100001"
-        "011110"
-        "100001"
-        "100001"
-        "011110",
-
-        // 9
-        "011110"
-        "100001"
-        "100001"
-        "011111"
-        "000001"
-        "011110"
-    };
-    // Calculate the index in the bitmapFont array based on the ASCII value of the character
-    int index = static_cast<int>(character) - 48;
-    // Loop through the character's bitmap and draw pixels onto screenPixels
-    for (int i = 0; i < BITMAP_SIZE; i++) {
-        for (int j = 0; j < BITMAP_SIZE; j++) {
-            for (int k = 0; k < SIZE_MULTIPLIER; k++){
-                for (int l = 0; l < SIZE_MULTIPLIER; l++){
-                    // Set the corresponding pixel in screenPixels to a color value (e.g., white)
-                    if (bitmapNumbers6x6[index][j * BITMAP_SIZE + i] == '1'){
-                        setPixel(x+i*2+k, y+j*2+l, color(255,120,34));
-                    }
-                }
-            }
-        }
-    }
-    return BITMAP_SIZE*SIZE_MULTIPLIER;
-}
-
-void sdl_debug_uint32_t(uint32_t value, int x, int y) {
-    const char* str = std::to_string(value).c_str();
-    int currentX = x;
-    // Loop through each character in the string
-    for (int i = 0; str[i] != '\0'; ++i) {
-        char character = str[i];
-        // Draw the character at the current position
-        currentX += drawCharacter(character, currentX, y, screenPixels) + 1;
-        // Move to the next position
-        // currentX += FONT_WIDTH + 1; // Add some space between characters
-    }
-}
-
-int main(int argc, const char * argv[])
+int custom_init(SDL_Window **window, SDL_Renderer **renderer, SDL_Texture ** texture)
 {
-    bool done = false;
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
-    {
         return -1;
-    }
 
     // Create a window
-    SDL_Window *window = SDL_CreateWindow("Classpad II PC demo",
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SCREEN_X*2,
-                                          SCREEN_Y*2,
-                                          SDL_WINDOW_OPENGL);
-    if (window == nullptr)
+    *window = SDL_CreateWindow("Classpad II PC demo",
+                                SDL_WINDOWPOS_UNDEFINED,
+                                SDL_WINDOWPOS_UNDEFINED,
+                                SCREEN_X*2,
+                                SCREEN_Y*2,
+                                SDL_WINDOW_OPENGL);
+    if (*window == nullptr)
     {
         SDL_Log("Could not create a window: %s", SDL_GetError());
         return -1;
     }
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr)
     {
         SDL_Log("Could not create a renderer: %s", SDL_GetError());
         return -1;
     }
 
-    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
-    screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
+    *texture = SDL_CreateTexture(*renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
 
-    if (DEBUG_TEST(texture, renderer)){
+    // IN Debug test we can try out things
+    if (DEBUG_TEST(*texture, *renderer))
         done = true;
-    }
+
+    return 0;
+}
+#endif
+
+#ifndef PC
+extern "C" void main()
+{
+    bool done = false;
+    custom_init();
+#else // ifdef PC
+int main(int argc, const char * argv[])
+{
+    bool done = false;
+
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture * texture;
+    screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
+    int status = custom_init(&window, &renderer, &texture);
+    if (status != 0) return status;
 
     bool key_left = false;
     bool key_right = false;
@@ -517,8 +464,10 @@ int main(int argc, const char * argv[])
     bool key_s = false;
     bool key_a = false;
     bool key_d = false;
+    bool key_e = false;
+#endif // PC
 
-#endif
+    Fix16 last_dt = Fix16((int16_t) 0.01f);
 
     char model_path[] =
 #ifdef PC
@@ -566,12 +515,13 @@ int main(int argc, const char * argv[])
 #ifdef PC
     uint32_t startTime = SDL_GetTicks();
     int frames = 0;
-    uint32_t last_fps = 0;
+    // last_dt = 1.0f / last_fps -> last_fps can not be zero. Initializing to some random value.
+    // last_dt can never be zero anyway so its fine.
+    uint32_t last_fps = 500; // Some high value is better as then there wont be super fast movements in beginning
 #endif
 
-#ifndef PC
-    bool KEY_0_prev = false;
-#endif
+    bool KEY_RENDER_MODE_prev = false;
+
     fix16_vec3 lightPos = {0.0f, 0.0f, 0.0f};
     Fix16 lightRotation = 0.0f;
 
@@ -589,16 +539,11 @@ int main(int argc, const char * argv[])
 
         fillScreen(FILL_SCREEN_COLOR);
         // --------------------------
-#ifdef PC
-        lightRotation += 0.005f;
-#else
-        lightRotation += 0.005f*40.0f;
-#endif
+        lightRotation += last_dt * 1.2f;
 
-        lightPos.x = lightRotation.sin() * Fix16(-8.0f);
+        lightPos.x = lightRotation.sin() * -8.0f;
         lightPos.y = -10.0f;
-        lightPos.z = lightRotation.cos() * Fix16(-8.0f);
-
+        lightPos.z = lightRotation.cos() * -8.0f;
 
         // ----- Check for exit -----
 #ifndef PC
@@ -606,63 +551,11 @@ int main(int argc, const char * argv[])
         if(testKey(k1,k2,KEY_CLEAR)) {
             done = true;
         }
+#endif // !PC
 
-        if(testKey(k1,k2,KEY_4))  {
-            //camera_pos.x -= 0.1f;
-            camera_pos.z += camera_rot.x.sin()*0.60f;
-            camera_pos.x -= camera_rot.x.cos()*0.60f;
-        }
-        if(testKey(k1,k2,KEY_6)) {
-            //camera_pos.x += 0.1f;
-            camera_pos.z -= camera_rot.x.sin()*0.60f;
-            camera_pos.x += camera_rot.x.cos()*0.60f;
-        }
-        if(testKey(k1,k2,KEY_8))    {
-            //camera_pos.z += 0.1f;
-            camera_pos.x += camera_rot.x.sin()*0.60f;
-            camera_pos.z += camera_rot.x.cos()*0.60f;
-        }
-        if(testKey(k1,k2,KEY_2))  {
-            //camera_pos.z -= 0.1f;
-            camera_pos.x -= camera_rot.x.sin()*0.60f;
-            camera_pos.z -= camera_rot.x.cos()*0.60f;
-        }
-        if(testKey(k1,k2,KEY_9))     {
-            camera_pos.y -= 0.1f;
-        }
-        if(testKey(k1,k2,KEY_3))     {
-            camera_pos.y += 0.1f;
-        }
-
-        if(testKey(k1,k2,KEY_ADD))  {
-            FOV += 1.0f;
-        }
-        if(testKey(k1,k2,KEY_SUBTRACT)){
-            FOV -= 1.0f;
-        }
-        if(testKey(k1,k2,KEY_0)){
-            if(KEY_0_prev == false){
-                if(RENDER_MODE > 0)
-                    RENDER_MODE = RENDER_MODE - 1;
-                else
-                    RENDER_MODE = RENDER_MODE_COUNT - 1;
-            }
-            KEY_0_prev = true;
-        }else{
-            KEY_0_prev = false;
-        }
-
-        if(testKey(k1,k2,KEY_LEFT))  camera_rot.x -= 0.1f;
-        if(testKey(k1,k2,KEY_RIGHT)) camera_rot.x += 0.1f;
-        if(testKey(k1,k2,KEY_UP))    camera_rot.y -= 0.1f;
-        if(testKey(k1,k2,KEY_DOWN))  camera_rot.y += 0.1f;
-
-
-#else
+#ifdef PC
         // Get the next event
         SDL_Event event;
-
-
         if (SDL_PollEvent(&event))
         {
             switch( event.type ){
@@ -682,12 +575,7 @@ int main(int argc, const char * argv[])
                         case SDLK_s:     key_s     = true; break;
                         case SDLK_1:     key_1     = true; break;
                         case SDLK_2:     key_2     = true; break;
-                        case SDLK_e:
-                            if(RENDER_MODE > 0)
-                                RENDER_MODE = RENDER_MODE - 1;
-                            else
-                                RENDER_MODE = RENDER_MODE_COUNT - 1;
-                            break;
+                        case SDLK_e:     key_e     = true; break;
                         // STOP
                         case SDLK_ESCAPE:
                             done = true;
@@ -709,6 +597,7 @@ int main(int argc, const char * argv[])
                         case SDLK_s:     key_s     = false; break;
                         case SDLK_1:     key_1     = false; break;
                         case SDLK_2:     key_2     = false; break;
+                        case SDLK_e:     key_e     = false; break;
                         default:                           break;
                     }
                     break;
@@ -719,60 +608,61 @@ int main(int argc, const char * argv[])
                     break;
             }
         }
+#endif // PC
 
-        if (key_left){
-            camera_pos.z += camera_rot.x.sin()*0.025f;
-            camera_pos.x -= camera_rot.x.cos()*0.025f;
+// ------------------ KEY PRESSES ----------------------
+
+        if(KEY_MOVE_LEFT)  {
+            camera_pos.z += camera_rot.x.sin() * last_dt * MOVEMENT_SPEED;
+            camera_pos.x -= camera_rot.x.cos() * last_dt * MOVEMENT_SPEED;
         }
-        if (key_right){
-            camera_pos.z -= camera_rot.x.sin()*0.025f;
-            camera_pos.x += camera_rot.x.cos()*0.025f;
+        if(KEY_MOVE_RIGHT) {
+            camera_pos.z -= camera_rot.x.sin() * last_dt * MOVEMENT_SPEED;
+            camera_pos.x += camera_rot.x.cos() * last_dt * MOVEMENT_SPEED;
         }
-        if (key_up){
-            camera_pos.x += camera_rot.x.sin()*0.025f;
-            camera_pos.z += camera_rot.x.cos()*0.025f;
+        if(KEY_MOVE_FORWARD)    {
+            camera_pos.x += camera_rot.x.sin() * last_dt * MOVEMENT_SPEED;
+            camera_pos.z += camera_rot.x.cos() * last_dt * MOVEMENT_SPEED;
         }
-        if (key_down){
-            camera_pos.x -= camera_rot.x.sin()*0.025f;
-            camera_pos.z -= camera_rot.x.cos()*0.025f;
+        if(KEY_MOVE_BACKWARD)  {
+            camera_pos.x -= camera_rot.x.sin() * last_dt * MOVEMENT_SPEED;
+            camera_pos.z -= camera_rot.x.cos() * last_dt * MOVEMENT_SPEED;
         }
-        if (key_r){
-            camera_pos.y -= 0.025f;
-        }
-        if (key_f){
-            camera_pos.y += 0.025f;
+        if(KEY_MOVE_UP)
+            camera_pos.y -= last_dt * MOVEMENT_SPEED;
+        if(KEY_MOVE_DOWN)
+            camera_pos.y += last_dt * MOVEMENT_SPEED;
+
+        if(KEY_MOVE_FOV_ADD)
+            FOV += last_dt * FOV_UPDATE_SPEED;
+        if(KEY_MOVE_FOV_SUB)
+            FOV -= last_dt * FOV_UPDATE_SPEED;
+
+        if(KEY_MOVE_REND_MODE){
+            if(KEY_RENDER_MODE_prev == false){
+                if(RENDER_MODE > 0)
+                    RENDER_MODE = RENDER_MODE - 1;
+                else
+                    RENDER_MODE = RENDER_MODE_COUNT - 1;
+            }
+            KEY_RENDER_MODE_prev = true;
+        }else{
+            KEY_RENDER_MODE_prev = false;
         }
 
-        if (key_a){
-            camera_rot.x -= 0.0035f;
-        }
-        if (key_d){
-            camera_rot.x += 0.0035f;
-        }
-        if (key_w){
-            camera_rot.y -= 0.0035f;
-        }
-        if (key_s){
-            camera_rot.y += 0.0035f;
-        }
-
-        if (key_1){
-            FOV += 0.1f;
-        }
-        if (key_2){
-            FOV -= 0.1f;
-        }
-#endif
+        if(KEY_ROTATE_LEFT)
+            camera_rot.x -= last_dt * CAMERA_SPEED;
+        if(KEY_ROTATE_RIGHT)
+            camera_rot.x += last_dt * CAMERA_SPEED;
+        if(KEY_ROTATE_UP)
+            camera_rot.y -= last_dt * CAMERA_SPEED;
+        if(KEY_ROTATE_DOWN)
+            camera_rot.y += last_dt * CAMERA_SPEED;
 
 // --------------------------------------------------
 
-#ifdef PC
-        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f;
+        all_models[all_model_count-1]->getRotation_ref().x += last_dt * 0.5f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
-#else
-        all_models[all_model_count-1]->getRotation_ref().x += 0.0025f*35.0f;
-        //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f*35.0f;
-#endif
 
         if (RENDER_MODE == 0)
         {
@@ -912,7 +802,7 @@ int main(int argc, const char * argv[])
             // Draw sun visualizer
             draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
 
-        }
+        }  // if (RENDER_MODE == 0)
 
         else if (RENDER_MODE == 1){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
@@ -1010,7 +900,8 @@ int main(int argc, const char * argv[])
                 free(vert_z_depths);
                 free(screen_coords);
             }
-        }
+        }  // else if (RENDER_MODE == 1)
+
         else if (RENDER_MODE == 2){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
@@ -1120,7 +1011,7 @@ int main(int argc, const char * argv[])
             }
             // Draw sun visualizer
             draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
-        }
+        }  // else if (RENDER_MODE == 2)
 
         else if (RENDER_MODE == 3){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
@@ -1195,7 +1086,8 @@ int main(int argc, const char * argv[])
                 free(vert_z_depths);
                 free(screen_coords);
             }
-        }
+        }  // else if (RENDER_MODE == 3)
+
         else if (RENDER_MODE == 4){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
@@ -1240,7 +1132,8 @@ int main(int argc, const char * argv[])
                 }
                 free(screen_coords);
             }
-        }
+        }  // else if (RENDER_MODE == 4)
+
         else if (RENDER_MODE == 5){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
@@ -1283,7 +1176,8 @@ int main(int argc, const char * argv[])
                 }
                 free(screen_coords);
             }
-        }
+        } // else if (RENDER_MODE == 5)
+
         else if (RENDER_MODE == 6){
             for (unsigned m_id=0; m_id<all_model_count; m_id++)
             {
@@ -1308,46 +1202,63 @@ int main(int argc, const char * argv[])
                 }
 
             }
-        }
+        } // else if (RENDER_MODE == 6)
 
         // Draw rotation visualizer in corner
         draw_RotationVisualizer(camera_rot);
 
 // --------------------------------------------------
 
-        // ----- Refresh screen -----
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~ Display FPS ~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #ifndef PC
-        #ifndef PC
+        // Note that this is directly yanked from <insert_someones_git_and_name>.
+        // The whole "fps_functions.hpp" is taken.
+        // I have not written FPS calculation functionality.
         fps_formatted_update();
         fps_display();
-        #endif
-        LCD_Refresh();
+        last_dt = Fix16(1.0f) / (Fix16(((int16_t) fps10)) / 10.0f);
 #else
-        // Draw FPS
+        // SDL_GetTicks() seems not to be super accurate, so accumulating
+        // frames and updating the frame counter every 250 ms
+        const Uint32 FPS_UPDATE_FREQ_MS = 150;
         Uint32 currentTime = SDL_GetTicks();
         frames++;
-        if (currentTime - startTime >= 250) {
-            // If 1 second has passed, update the FPS string
+        if (currentTime - startTime >= FPS_UPDATE_FREQ_MS) {
             float fps = frames / ((currentTime - startTime) / 1000.0f);
             last_fps = (uint32_t) fps;
-            // Reset the counters
             startTime = currentTime;
             frames = 0;
         }
         sdl_debug_uint32_t(last_fps, 10, 10);
 
+        last_dt = Fix16(1.0f) / (Fix16(((int16_t) last_fps)));
+#endif
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~ Refresh screen ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#ifndef PC
+        LCD_Refresh();
+#else
         SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_RenderPresent(renderer);
 #endif
-    }
+    } // while(!done)
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~ End Program ~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #ifndef PC
     calcEnd(); //restore screen and do stuff
 #else
-    // Tidy up
+    // End program without leaking memory
     delete[] screenPixels;
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);

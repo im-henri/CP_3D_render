@@ -1,6 +1,9 @@
 #pragma once
-
+// Include guard PC
 #ifdef PC
+
+#include <iostream> // std::string
+
 Uint32 * screenPixels;
 
 void setPixel(int x, int y, uint32_t color)
@@ -140,4 +143,122 @@ The triangle has three points P0, P1 and P2 and three lines a, b and c. We go fr
     line(x1,y1,x2,y2,colorLine);
     line(x2,y2,x0,y0,colorLine);
 }
-#endif
+
+
+int drawCharacter(char character, int x, int y, Uint32* screenPixels) {
+    const int BITMAP_SIZE = 6;
+    const int SIZE_MULTIPLIER = 2;
+    const char* bitmapNumbers6x6[] = {
+        // 0
+        "011110"
+        "100001"
+        "100001"
+        "100001"
+        "100001"
+        "011110",
+
+        // 1
+        "001000"
+        "011000"
+        "001000"
+        "001000"
+        "001000"
+        "111111",
+
+        // 2
+        "011110"
+        "100001"
+        "000010"
+        "000100"
+        "001000"
+        "111111",
+
+        // 3
+        "011110"
+        "100001"
+        "000110"
+        "000001"
+        "100001"
+        "011110",
+
+        // 4
+        "000100"
+        "001100"
+        "010100"
+        "111111"
+        "000100"
+        "000100",
+
+        // 5
+        "111111"
+        "100000"
+        "111110"
+        "000001"
+        "100001"
+        "011110",
+
+        // 6
+        "011110"
+        "100001"
+        "100000"
+        "111110"
+        "100001"
+        "011110",
+
+        // 7
+        "111111"
+        "000001"
+        "000010"
+        "000100"
+        "001000"
+        "010000",
+
+        // 8
+        "011110"
+        "100001"
+        "011110"
+        "100001"
+        "100001"
+        "011110",
+
+        // 9
+        "011110"
+        "100001"
+        "100001"
+        "011111"
+        "000001"
+        "011110"
+    };
+    // Calculate the index in the bitmapFont array based on the ASCII value of the character
+    int index = static_cast<int>(character) - 48;
+    // Loop through the character's bitmap and draw pixels onto screenPixels
+    for (int i = 0; i < BITMAP_SIZE; i++) {
+        for (int j = 0; j < BITMAP_SIZE; j++) {
+            for (int k = 0; k < SIZE_MULTIPLIER; k++){
+                for (int l = 0; l < SIZE_MULTIPLIER; l++){
+                    // Set the corresponding pixel in screenPixels to a color value (e.g., white)
+                    if (bitmapNumbers6x6[index][j * BITMAP_SIZE + i] == '1'){
+                        setPixel(x+i*2+k, y+j*2+l, color(255,120,34));
+                    }
+                }
+            }
+        }
+    }
+    return BITMAP_SIZE*SIZE_MULTIPLIER;
+}
+
+void sdl_debug_uint32_t(uint32_t value, int x, int y) {
+    const char* str = std::to_string(value).c_str();
+    int currentX = x;
+    // Loop through each character in the string
+    for (int i = 0; str[i] != '\0'; ++i) {
+        char character = str[i];
+        // Draw the character at the current position
+        currentX += drawCharacter(character, currentX, y, screenPixels) + 1;
+        // Move to the next position
+        // currentX += FONT_WIDTH + 1; // Add some space between characters
+    }
+}
+
+// Include guard PC
+#endif // PC
