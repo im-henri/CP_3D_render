@@ -6,6 +6,9 @@
 # make PC binary
 pc_out
 
+# Not tracked folder
+not_tracked/*
+
 # some temporary files under wsl
 *~
 .*~
