@@ -78,37 +78,3 @@ fix16_vec2 getScreenCoordinate(
 
     return fix16_vec2({sx, sy});
 }
-
-/*
-def getScreenCoordinates(self, vertex, skip = False):
-    '''
-    LOGIC OF GETTING DRAWING COORDINATES
-    '''
-    vx = vertex[0]; vy = vertex[1]; vz = vertex[2]
-    camx = self.camera.pos[0]; camy = self.camera.pos[1]; camz = self.camera.pos[2]
-
-    x = vx - camx
-    y = vy - camy
-    z = vz - camz
-
-    x, z = self.rotateOnPlane(x, z, self.camera.xRotation)
-    y, z = self.rotateOnPlane(y, z, self.camera.yRotation)
-
-
-    if z == 0:
-        z = 0.0001
-
-    focal = self.fov/z
-
-    realx = ((x)*focal)
-    realy = ((y)*focal)
-
-    x = self.centerX + int(realx)
-    y = self.centerY + int(realy)
-    drawit = False
-    extra = 2000
-    if z>0 and x < self.width+ extra and x > -extra and y >-extra and y < self.height+extra:
-        drawit = True
-
-    return x,y, drawit
-*/
