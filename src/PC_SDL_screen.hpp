@@ -144,10 +144,9 @@ The triangle has three points P0, P1 and P2 and three lines a, b and c. We go fr
     line(x2,y2,x0,y0,colorLine);
 }
 
-
 int drawCharacter(char character, int x, int y, Uint32* screenPixels) {
-    const int BITMAP_SIZE = 6;
-    const int SIZE_MULTIPLIER = 2;
+    const int SIZE_MULTIPLIER = 2; // Scale the text by integer
+    const int BITMAP_SIZE     = 6; // bitmap x and y must be this size
     const char* bitmapNumbers6x6[] = {
         // 0
         "011110"

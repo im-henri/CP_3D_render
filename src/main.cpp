@@ -32,6 +32,7 @@
 #   include <fcntl.h>   // File open & close
 #endif
 
+// Keymappings, both ClassPad and SDL2
 #ifndef PC
 #   define KEY_MOVE_LEFT       testKey(k1,k2,KEY_4)
 #   define KEY_MOVE_RIGHT      testKey(k1,k2,KEY_6)
@@ -46,6 +47,7 @@
 #   define KEY_ROTATE_RIGHT    testKey(k1,k2,KEY_RIGHT)
 #   define KEY_ROTATE_UP       testKey(k1,k2,KEY_UP)
 #   define KEY_ROTATE_DOWN     testKey(k1,k2,KEY_DOWN)
+#   define KEY_QUIT            testKey(k1,k2,KEY_CLEAR)
 #else
 #   define KEY_MOVE_LEFT       key_left
 #   define KEY_MOVE_RIGHT      key_right
@@ -60,6 +62,7 @@
 #   define KEY_ROTATE_RIGHT    key_d
 #   define KEY_ROTATE_UP       key_w
 #   define KEY_ROTATE_DOWN     key_s
+#   define KEY_QUIT            key_ESCAPE
 #endif
 
 
@@ -74,8 +77,8 @@
 extern int fps10;
 #endif
 
-#define MOVEMENT_SPEED   20.0f
-#define CAMERA_SPEED      1.5f
+#define MOVEMENT_SPEED   15.0f
+#define CAMERA_SPEED      1.15f
 #define FOV_UPDATE_SPEED 50.0f
 
 #define FILL_SCREEN_COLOR color(190,190,190)
@@ -176,7 +179,7 @@ void drawHorizontalLine(
 }
 
 void drawTriangle(
-    Point2d v0, Point2d v1, Point2d v2,
+    int16_t_Point2d v0, int16_t_Point2d v1, int16_t_Point2d v2,
     uint32_t *texture, int textureWidth, int textureHeight,
     Fix16 lightInstensity = 1.0f
 ) {
@@ -186,7 +189,7 @@ void drawTriangle(
 
     int totalHeight = v2.y - v0.y;
 
-    // Avoid division by zero
+    // If triangle happens to be just a line, lets avoid it completely
     if (totalHeight == 0) return;
 
     // Drawing the upper part of the triangle
@@ -224,119 +227,6 @@ void drawTriangle(
 
         drawHorizontalLine(x0, x1, y, u0, u1, v0_coord, v1_coord, texture, textureWidth, textureHeight, lightInstensity);
     }
-}
-
-bool DEBUG_TEST(
-#ifdef PC
-    SDL_Texture  *texture,
-    SDL_Renderer *renderer
-#endif
-)
-{
-    return false;
-
-    // True  = RUN ONLY THIS TEST AND STOP AFTERWARDS
-    // False = CONTINUE WITH NORMAL MAIN
-//     const int16_t OFFSET = 160;
-//     const int16_t SIZE = 150;
-//     /*
-//                    v2
-//                 _ /|
-//             _ /    |
-//         _ /        |
-//       /            |
-//     v0 ------------ v1
-//     texture png corners
-//         (0,0)  (1,0)
-//
-//         (0,1)  (1,1)
-//     */
-// #define UPPER_HALF
-// #ifdef LOWER_HALF
-//     // Lower half
-//     const float rot_offset = -0.8f;
-//     Point2d v0 = {0,0,  gen_textureWidth*0,gen_textureHeight*1};
-//     Point2d v1 = {0,0,  gen_textureWidth*1,gen_textureHeight*1};
-//     Point2d v2 = {0,0,  gen_textureWidth*1,gen_textureHeight*0};
-// #else
-//     // Upper half
-//     const float rot_offset = +2.35f;
-//     Point2d v0 = {0,0,  gen_textureWidth * 1, gen_textureHeight * 0};
-//     Point2d v1 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 0};
-//     Point2d v2 = {0,0,  gen_textureWidth * 0, gen_textureHeight * 1};
-// #endif
-// #ifdef PC
-//     std::cout << "rd_bytes:   0x" << std::hex << 123 << std::endl;
-// #else
-//     Debug_Printf(1,1, false, 0, "rd_bytes:   0x%x", 123);
-// #endif
-//     Fix16 rad1 = Fix16(0.0f+rot_offset);
-//     Fix16 rad2 = Fix16(1.57f+rot_offset);
-//     Fix16 rad3 = Fix16(3.14f+rot_offset);
-// #ifdef PC
-//     SDL_Event event;
-// #endif
-//     bool done = false;
-//     while (!done)
-//     {
-// #ifdef PC
-//         rad1 += 0.0011f;
-//         rad2 += 0.0011f;
-//         rad3 += 0.0011f;
-// #else
-//         rad1 += 0.0011f*29.0f;
-//         rad2 += 0.0011f*29.0f;
-//         rad3 += 0.0011f*29.0f;
-// #endif
-//         Fix16 v0_x = rad1.sin() * (float) SIZE;
-//         Fix16 v0_y = rad1.cos() * (float) SIZE;
-//         Fix16 v1_x = rad2.sin() * (float) SIZE;
-//         Fix16 v1_y = rad2.cos() * (float) SIZE;
-//         Fix16 v2_x = rad3.sin() * (float) SIZE;
-//         Fix16 v2_y = rad3.cos() * (float) SIZE;
-//         v0.x = (int16_t) v0_x + OFFSET;
-//         v0.y = (int16_t) v0_y + OFFSET;
-//         v1.x = (int16_t) v1_x + OFFSET;
-//         v1.y = (int16_t) v1_y + OFFSET;
-//         v2.x = (int16_t) v2_x + OFFSET;
-//         v2.y = (int16_t) v2_y + OFFSET;
-//         fillScreen(FILL_SCREEN_COLOR);
-// #ifdef PC
-//         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
-//         SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
-//         SDL_RenderClear(renderer);
-//         SDL_RenderCopy(renderer, texture, NULL, NULL);
-//         SDL_RenderPresent(renderer);
-//         SDL_PollEvent(&event);
-//         switch( event.type ){
-//             case SDL_KEYDOWN:
-//                 switch( event.key.keysym.sym ){
-//                     case SDLK_ESCAPE:
-//                         done = true;
-//                         break;
-//                     default:
-//                         break;
-//                 }
-//                 break;
-//             /* Keyboard event */
-//             case SDL_QUIT:
-//                 done = true;
-//                 break;
-//             default:
-//                 break;
-//         }
-// #else
-//         drawTriangle(v0, v1, v2, gen_uv_tex, gen_textureWidth, gen_textureHeight);
-//         uint32_t k1,k2; getKey(&k1,&k2);
-//         if(testKey(k1,k2,KEY_CLEAR)) {
-//             done = true;
-//         }
-//         LCD_Refresh();
-// #endif
-//     }
-//     return true;
-//     // True  = EXIT
-//     // False = CONTINUE
 }
 
 void draw_RotationVisualizer(fix16_vec2 camera_rot)
@@ -385,19 +275,10 @@ void draw_SunLocation(Fix16 FOV, fix16_vec3 lightPos, fix16_vec3 camera_pos, fix
 }
 
 #ifndef PC
-void custom_init()
+int custom_init()
 {
     calcInit(); //backup screen and init some variables
-    if (DEBUG_TEST()){
-        while(true){
-            uint32_t k1,k2; getKey(&k1,&k2);
-            if(testKey(k1,k2,KEY_CLEAR)) {
-                break;
-            }
-        }
-        calcEnd(); //restore screen and do stuff
-        return;
-    }
+    return 0;
 }
 #else
 int custom_init(SDL_Window **window, SDL_Renderer **renderer, SDL_Texture ** texture)
@@ -405,31 +286,24 @@ int custom_init(SDL_Window **window, SDL_Renderer **renderer, SDL_Texture ** tex
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
         return -1;
 
-    // Create a window
     *window = SDL_CreateWindow("Classpad II PC demo",
                                 SDL_WINDOWPOS_UNDEFINED,
                                 SDL_WINDOWPOS_UNDEFINED,
                                 SCREEN_X*2,
                                 SCREEN_Y*2,
                                 SDL_WINDOW_OPENGL);
-    if (*window == nullptr)
-    {
+    if (*window == nullptr) {
         SDL_Log("Could not create a window: %s", SDL_GetError());
         return -1;
     }
 
     *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == nullptr)
-    {
+    if (renderer == nullptr) {
         SDL_Log("Could not create a renderer: %s", SDL_GetError());
         return -1;
     }
 
     *texture = SDL_CreateTexture(*renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, SCREEN_X, SCREEN_Y);
-
-    // IN Debug test we can try out things
-    if (DEBUG_TEST(*texture, *renderer))
-        done = true;
 
     return 0;
 }
@@ -438,19 +312,18 @@ int custom_init(SDL_Window **window, SDL_Renderer **renderer, SDL_Texture ** tex
 #ifndef PC
 extern "C" void main()
 {
-    bool done = false;
-    custom_init();
+    int init_status = custom_init();
+    if (init_status != 0) return;
 #else // ifdef PC
 int main(int argc, const char * argv[])
 {
-    bool done = false;
-
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture * texture;
     screenPixels = new Uint32[SCREEN_X * SCREEN_Y];
-    int status = custom_init(&window, &renderer, &texture);
-    if (status != 0) return status;
+
+    int init_status = custom_init(&window, &renderer, &texture);
+    if (init_status != 0) return init_status;
 
     bool key_left = false;
     bool key_right = false;
@@ -465,9 +338,9 @@ int main(int argc, const char * argv[])
     bool key_a = false;
     bool key_d = false;
     bool key_e = false;
+    bool key_ESCAPE = false;
 #endif // PC
-
-    Fix16 last_dt = Fix16((int16_t) 0.01f);
+    bool KEY_RENDER_MODE_prev = false; // De-bouncing the button
 
     char model_path[] =
 #ifdef PC
@@ -483,24 +356,19 @@ int main(int argc, const char * argv[])
         "\\fls0\\big_endian.texture";
 #endif
 
-    fillScreen(FILL_SCREEN_COLOR);
 #ifndef PC
+    // Let user know that program has not crashed and we are loading model
+    fillScreen(FILL_SCREEN_COLOR);
     Debug_SetCursorPosition(1,1);
     Debug_PrintString("Load obj", false);
     LCD_Refresh();
-#else
-    SDL_UpdateTexture(texture, NULL, screenPixels, SCREEN_X * sizeof(Uint32));
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
 #endif
 
-    // Test obj model
+    // Load test model
     Model model_test  = Model(model_path, model_texture_path);
     model_test.getRotation_ref().y = Fix16(3.145f/2.0f);
 
-    // -----------------
-    // Models to render
+    // All model list
     Model* all_models[] = {
         //&model_floor,
         // &cube1, &testmodel, &model_test
@@ -510,32 +378,35 @@ int main(int argc, const char * argv[])
 
     fix16_vec3 camera_pos = {-6.0f, -1.6f, -8.0f};
     fix16_vec2 camera_rot = {0.6f, 0.4f};
+    Fix16 FOV = 300.0f; // Does not mean degrees
 
-    Fix16 FOV = 300.0f; // Does not mean 300 degrees, some "arbitrary" meaning
 #ifdef PC
-    uint32_t startTime = SDL_GetTicks();
-    int frames = 0;
-    // last_dt = 1.0f / last_fps -> last_fps can not be zero. Initializing to some random value.
-    // last_dt can never be zero anyway so its fine.
-    uint32_t last_fps = 500; // Some high value is better as then there wont be super fast movements in beginning
+    uint32_t time_t0 = SDL_GetTicks();
+    int accumulative_frames  = 0;
+    uint32_t last_fps = 0;
 #endif
-
-    bool KEY_RENDER_MODE_prev = false;
 
     fix16_vec3 lightPos = {0.0f, 0.0f, 0.0f};
     Fix16 lightRotation = 0.0f;
 
     const uint16_t RENDER_MODE_COUNT = 7;
     uint16_t RENDER_MODE = RENDER_MODE_COUNT-1;
+
+    // Delta-time
+    Fix16 last_dt = Fix16((int16_t) 0.0016f);
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    bool done = false;
     while(!done)
     {
-        #ifdef PC
-        uint32_t start = SDL_GetTicks();
-        #endif
 
-        #ifndef PC
+#ifndef PC
+        // FPS & delta-time count timer
         fps_update();
-        #endif
+#endif
 
         fillScreen(FILL_SCREEN_COLOR);
         // --------------------------
@@ -545,15 +416,13 @@ int main(int argc, const char * argv[])
         lightPos.y = -10.0f;
         lightPos.z = lightRotation.cos() * -8.0f;
 
-        // ----- Check for exit -----
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~ Key Presses ~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #ifndef PC
         uint32_t k1,k2; getKey(&k1,&k2);
-        if(testKey(k1,k2,KEY_CLEAR)) {
-            done = true;
-        }
-#endif // !PC
-
-#ifdef PC
+#else // !PC -> PC
         // Get the next event
         SDL_Event event;
         if (SDL_PollEvent(&event))
@@ -563,24 +432,21 @@ int main(int argc, const char * argv[])
                 /* Pass the event data onto PrintKeyInfo() */
                 case SDL_KEYDOWN:
                     switch( event.key.keysym.sym ){
-                        case SDLK_LEFT:  key_left  = true; break;
-                        case SDLK_RIGHT: key_right = true; break;
-                        case SDLK_UP:    key_up    = true; break;
-                        case SDLK_DOWN:  key_down  = true; break;
-                        case SDLK_r:     key_r     = true; break;
-                        case SDLK_f:     key_f     = true; break;
-                        case SDLK_a:     key_a     = true; break;
-                        case SDLK_d:     key_d     = true; break;
-                        case SDLK_w:     key_w     = true; break;
-                        case SDLK_s:     key_s     = true; break;
-                        case SDLK_1:     key_1     = true; break;
-                        case SDLK_2:     key_2     = true; break;
-                        case SDLK_e:     key_e     = true; break;
-                        // STOP
-                        case SDLK_ESCAPE:
-                            done = true;
-                            break;
-                        default:                           break;
+                        case SDLK_LEFT:   key_left  = true; break;
+                        case SDLK_RIGHT:  key_right = true; break;
+                        case SDLK_UP:     key_up    = true; break;
+                        case SDLK_DOWN:   key_down  = true; break;
+                        case SDLK_r:      key_r     = true; break;
+                        case SDLK_f:      key_f     = true; break;
+                        case SDLK_a:      key_a     = true; break;
+                        case SDLK_d:      key_d     = true; break;
+                        case SDLK_w:      key_w     = true; break;
+                        case SDLK_s:      key_s     = true; break;
+                        case SDLK_1:      key_1     = true; break;
+                        case SDLK_2:      key_2     = true; break;
+                        case SDLK_e:      key_e     = true; break;
+                        case SDLK_ESCAPE: key_ESCAPE = true; break;
+                        default:                            break;
                     }
                     break;
                 case SDL_KEYUP:
@@ -598,10 +464,11 @@ int main(int argc, const char * argv[])
                         case SDLK_1:     key_1     = false; break;
                         case SDLK_2:     key_2     = false; break;
                         case SDLK_e:     key_e     = false; break;
-                        default:                           break;
+                        case SDLK_ESCAPE: key_ESCAPE = false; break;
+                        default:                            break;
                     }
                     break;
-                case SDL_QUIT:
+                case SDL_QUIT: // Closing window i.e. pressing window "X" button
                     done = true;
                     break;
                 default:
@@ -610,7 +477,12 @@ int main(int argc, const char * argv[])
         }
 #endif // PC
 
-// ------------------ KEY PRESSES ----------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~ Key Presses ~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if (KEY_QUIT)
+            done = true;
 
         if(KEY_MOVE_LEFT)  {
             camera_pos.z += camera_rot.x.sin() * last_dt * MOVEMENT_SPEED;
@@ -659,7 +531,9 @@ int main(int argc, const char * argv[])
         if(KEY_ROTATE_DOWN)
             camera_rot.y += last_dt * CAMERA_SPEED;
 
-// --------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         all_models[all_model_count-1]->getRotation_ref().x += last_dt * 0.5f;
         //all_models[all_model_count-1]->getRotation_ref().y += 0.0003f;
@@ -698,10 +572,8 @@ int main(int argc, const char * argv[])
                 }
 
                 // Init the face_draw_order
-                // -- CRUDE ORDERING (Work In Progress)
                 for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
-                    // CRUDELY only choosing first vertex
                     unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
                     unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
                     unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
@@ -745,8 +617,6 @@ int main(int argc, const char * argv[])
                 }
                 // Sorting
                 bubble_sort(face_draw_order, all_models[m_id]->faces_count);
-                //heapSort(face_draw_order, all_models[m_id]->faces_count);
-                //shellSort(face_draw_order, all_models[m_id]->faces_count);
 
                 // Draw face edges
                 for (unsigned int ordered_id=0; ordered_id<all_models[m_id]->faces_count; ordered_id++)
@@ -775,9 +645,9 @@ int main(int argc, const char * argv[])
                     auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
                     auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                    Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
-                    Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
-                    Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
+                    int16_t_Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
+                    int16_t_Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
+                    int16_t_Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
 
                     const auto face_pos = all_models[m_id]->vertices[all_models[m_id]->faces[f_id].First];
                     Fix16 lightIntensity = calculateLightIntensity(
@@ -786,7 +656,6 @@ int main(int argc, const char * argv[])
 
                     drawTriangle(
                         v0_screen, v1_screen, v2_screen,
-                        //gen_uv_tex, gen_textureWidth, gen_textureHeight
                         all_models[m_id]->gen_uv_tex,
                         all_models[m_id]->gen_textureWidth,
                         all_models[m_id]->gen_textureHeight,
@@ -836,10 +705,8 @@ int main(int argc, const char * argv[])
                 }
 
                 // Init the face_draw_order
-                // -- CRUDE ORDERING (Work In Progress)
                 for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
-                    // CRUDELY only choosing first vertex
                     unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
                     unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
                     unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
@@ -884,9 +751,9 @@ int main(int argc, const char * argv[])
                     auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)all_models[m_id]->gen_textureWidth)));
                     auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)all_models[m_id]->gen_textureHeight)));
 
-                    Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
-                    Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
-                    Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
+                    int16_t_Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
+                    int16_t_Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
+                    int16_t_Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
 
                     drawTriangle(
                         v0_screen, v1_screen, v2_screen,
@@ -931,10 +798,8 @@ int main(int argc, const char * argv[])
                     screen_coords[v_id] = {x, y};
                 }
                 // Init the face_draw_order
-                // -- CRUDE ORDERING (Work In Progress)
                 for (unsigned f_id=0; f_id<all_models[m_id]->faces_count; f_id++)
                 {
-                    // CRUDELY only choosing first vertex
                     unsigned int f_v0_id = all_models[m_id]->faces[f_id].First;
                     unsigned int f_v1_id = all_models[m_id]->faces[f_id].Second;
                     unsigned int f_v2_id = all_models[m_id]->faces[f_id].Third;
@@ -1207,8 +1072,6 @@ int main(int argc, const char * argv[])
         // Draw rotation visualizer in corner
         draw_RotationVisualizer(camera_rot);
 
-// --------------------------------------------------
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~ Display FPS ~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1221,20 +1084,23 @@ int main(int argc, const char * argv[])
         fps_display();
         last_dt = Fix16(1.0f) / (Fix16(((int16_t) fps10)) / 10.0f);
 #else
-        // SDL_GetTicks() seems not to be super accurate, so accumulating
-        // frames and updating the frame counter every 250 ms
-        const Uint32 FPS_UPDATE_FREQ_MS = 150;
-        Uint32 currentTime = SDL_GetTicks();
-        frames++;
-        if (currentTime - startTime >= FPS_UPDATE_FREQ_MS) {
-            float fps = frames / ((currentTime - startTime) / 1000.0f);
+        // SDL_GetTicks() seems not to be super accurate, so adding frames to
+        // accumulative_frames and updating the frame counter with some period
+        const Uint32 FPS_UPDATE_FREQ_MS = 300;
+        Uint32 time_t1 = SDL_GetTicks();
+        accumulative_frames++;
+        if (time_t1 - time_t0 >= FPS_UPDATE_FREQ_MS) {
+            float fps = accumulative_frames / ((time_t1 - time_t0) / 1000.0f);
             last_fps = (uint32_t) fps;
-            startTime = currentTime;
-            frames = 0;
+            time_t0 = time_t1;
+            accumulative_frames = 0;
+            // Also update dt
+            last_dt = Fix16(1.0f) / (Fix16(((int16_t) last_fps)));
         }
+        // Printing "text" (only numbers for possible for now) from
+        // manually created bitmaps
         sdl_debug_uint32_t(last_fps, 10, 10);
 
-        last_dt = Fix16(1.0f) / (Fix16(((int16_t) last_fps)));
 #endif
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

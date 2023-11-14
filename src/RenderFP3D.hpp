@@ -8,7 +8,7 @@ struct int16_t_vec2
     int16_t y;
 };
 
-struct Point2d
+struct int16_t_Point2d
 {
     int16_t x;
     int16_t y;
