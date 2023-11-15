@@ -7,6 +7,8 @@
 
 void setPixel(int x, int y, uint32_t color);
 
+void setPixel_Unsafe(int x, int y, uint32_t color);
+
 void LCD_ClearScreen();
 
 // Unlike ClassPad, SDL2 can render all colors as 8bit (24b colors + 8b alpha).

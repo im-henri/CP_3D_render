@@ -12,14 +12,16 @@
 
 [x] Light minimum value (full black looks bad)
 
-[ ] Object center distance to camera, per object render order.
+[x] Object center distance to camera, per object render order.
     Before rendering sort modelsArray by distancd.
     -> could also check object circular size that could be calculated during ctor
 
 [x] Allow texture path as "".On ctor check if texture path is not "" and there is uv coordinates
     -> if any is false set bool has texture = false
 
-[ ] Render mode: Make it per model. Store render mode value in Model class.
+[x] Render mode: Make it per model. Store render mode value in Model class.
+
+[ ] Sort object list only when user has moved
 
 [ ] Make render modes cleaner instead of copy paste 6x times...
 

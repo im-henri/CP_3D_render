@@ -52,6 +52,8 @@ public:
     fix16_vec2& getRotation_ref();
     fix16_vec3& getScale_ref();
 
+    uint16_t render_mode;
+
     // SUPER slow
     bool load_from_raw_obj_file(char* fname);
     // Way faster (Run obj through python script to generate binary format)

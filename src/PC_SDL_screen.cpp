@@ -16,6 +16,11 @@ void setPixel(int x, int y, uint32_t color)
         screenPixels[y * SCREEN_X + x] = color;
 }
 
+void setPixel_Unsafe(int x, int y, uint32_t color)
+{
+    screenPixels[y * SCREEN_X + x] = color;
+}
+
 void LCD_ClearScreen()
 {
     memset(screenPixels, 255, SCREEN_X * SCREEN_Y * sizeof(uint32_t));

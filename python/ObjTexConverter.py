@@ -9,9 +9,13 @@ from PIL import Image
 ## version in classpad. (Computer uses most likely little.)
 ############################################################
 
-model_path   = models_path / "test.obj"
+#model_path   = models_path / "test.obj"
+#texture_path = None
+#out_name     = "test"
+
+model_path   = models_path / "test2.obj"
 texture_path = None
-out_name     = "test"
+out_name     = "test2"
 
 #model_path   = models_path / "suzanne.obj"
 #texture_path = None

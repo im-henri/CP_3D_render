@@ -28,7 +28,8 @@ Model::Model(
     vertices(vertices), vertex_count(vertex_count),
     faces(faces), faces_count(faces_count),
     has_texture(false),
-    gen_textureWidth(0), gen_textureHeight(0)
+    gen_textureWidth(0), gen_textureHeight(0),
+    render_mode(0)
 { }
 
 Model::~Model()
@@ -53,7 +54,8 @@ Model::Model(
     vertices(nullptr), vertex_count(0),
     faces(nullptr), faces_count(0),
     has_texture(false),
-    gen_textureWidth(0), gen_textureHeight(0)
+    gen_textureWidth(0), gen_textureHeight(0),
+    render_mode(0)
 {
     //loaded_from_file = this->load_from_raw_obj_file(fname);
     loaded_from_file = this->load_from_binary_obj_file(fname, ftexture);

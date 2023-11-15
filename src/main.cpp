@@ -184,9 +184,9 @@ int main(int argc, const char * argv[])
         "\\fls0\\big_endian_test.pkObj";
 #endif
 
+    fillScreen(FILL_SCREEN_COLOR);
 #ifndef PC
     // Let user know that program has not crashed and we are loading model
-    fillScreen(FILL_SCREEN_COLOR);
     Debug_SetCursorPosition(1,1);
     Debug_PrintString("Load obj", false);
     LCD_Refresh();
@@ -199,10 +199,28 @@ int main(int argc, const char * argv[])
     auto model = renderer.addModel(model1_path, model1_texture_path);
     model->getRotation_ref().y = Fix16(3.145f/2.0f);
 
-    auto model2 = renderer.addModel(model2_path, NO_TEXTURE);
-    model2->getPosition_ref().x += 10.0f;
-    model2->getRotation_ref().y = Fix16(3.145f/2.0f);
+    uint16_t rend_mod = 0;
 
+    Fix16 place_in_circle = 0.0f;
+    const int16_t place_count = 4;
+    const Fix16 radius = 13.0f;
+    Model* autoplaced_models[place_count];
+    for(int16_t i=0; i<place_count; i++){
+        place_in_circle = ((Fix16(fix16_pi)) * 2.0f * Fix16(i) / place_count);
+
+        auto m = renderer.addModel(model2_path, NO_TEXTURE);
+        autoplaced_models[i] = m;
+
+        // Position
+        m->getPosition_ref().x = place_in_circle.sin() * radius;
+        m->getPosition_ref().y = +5.0f;
+        m->getPosition_ref().z = place_in_circle.cos() * radius;
+
+        // Rotation
+        m->getRotation_ref().y = Fix16(3.145f/2.0f);
+        m->render_mode = (rend_mod++)%RENDER_MODE_COUNT;
+
+    }
 #ifdef PC
     uint32_t time_t0 = SDL_GetTicks();
     int accumulative_frames  = 0;
@@ -210,9 +228,6 @@ int main(int argc, const char * argv[])
 #endif
 
     Fix16 lightRotation = 0.0f;
-
-    const uint16_t RENDER_MODE_COUNT = 7;
-    uint16_t RENDER_MODE = 0; // RENDER_MODE_COUNT-1;
 
     // Delta-time
     Fix16 last_dt = Fix16((int16_t) 0.0016f);
@@ -233,8 +248,6 @@ int main(int argc, const char * argv[])
         fps_update();
 #endif
 
-        fillScreen(FILL_SCREEN_COLOR);
-        // --------------------------
         lightRotation += last_dt * 1.2f;
 
         renderer.get_lightPos().x = lightRotation.sin() * -8.0f;
@@ -343,10 +356,10 @@ int main(int argc, const char * argv[])
 
         if(KEY_MOVE_REND_MODE){
             if(KEY_RENDER_MODE_prev == false){
-                if(RENDER_MODE > 0)
-                    RENDER_MODE = RENDER_MODE - 1;
+                if(model->render_mode > 0)
+                    model->render_mode = model->render_mode - 1;
                 else
-                    RENDER_MODE = RENDER_MODE_COUNT - 1;
+                    model->render_mode = RENDER_MODE_COUNT - 1;
             }
             KEY_RENDER_MODE_prev = true;
         } else {
@@ -370,10 +383,23 @@ int main(int argc, const char * argv[])
 // ~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        // Only doing simple rotation in main loop
         model->getRotation_ref().x += last_dt * 0.5f;
 
-        // Render things
-        renderer.update(RENDER_MODE);
+
+        auto roty = autoplaced_models[0]->getRotation_ref().y + last_dt * 1.0f;
+        auto rotx = autoplaced_models[0]->getRotation_ref().x + last_dt * 1.0f;
+        for (int i=0; i<place_count; i++){
+            autoplaced_models[i]->getRotation_ref().y = roty;
+            autoplaced_models[i]->getRotation_ref().x = rotx;
+        }
+
+        // Return clear BoundingBox (Box created by these 2 points only must be cleared)
+        // This should drastically improve speed if models take only small part of screen.
+        int16_t_vec2 bbox_max = {0, 0};
+        int16_t_vec2 bbox_min = {SCREEN_X, SCREEN_Y};
+        // Draws objects to ram. Later refersh lcd.
+        renderer.update(&bbox_max, &bbox_min);
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~ Display FPS ~~~~~~~~~~~~~~~~~~~~
@@ -418,6 +444,50 @@ int main(int argc, const char * argv[])
         SDL_RenderCopy(sdl_renderer, texture, NULL, NULL);
         SDL_RenderPresent(sdl_renderer);
 #endif
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~  Clear VRAM for new frame ~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// #ifdef PC
+//         std::cout << "bbox_min.x: " << bbox_min.x << " | bbox_min.y: " << bbox_min.y << std::endl;
+//         std::cout << "bbox_max.x: " << bbox_max.x << " | bbox_max.y: " << bbox_max.y << std::endl;
+// #endif
+        // Clear models
+        for(int x=bbox_min.x; x<bbox_max.x; x++){
+            for(int y=bbox_min.y; y<bbox_max.y; y++){
+                // UNSAFE Pixel setting (not checking if the pixel is inside)
+#ifdef PC
+                setPixel_Unsafe(x,y, FILL_SCREEN_COLOR);
+#else
+                vram[width*y + x] = FILL_SCREEN_COLOR;
+#endif
+            }
+        }
+
+        // Clear rotation visualizer
+        for(int x=SCREEN_X-ROTATION_VISUALIZER_LINE_WIDTH*2-ROTATION_VISALIZER_EDGE_OFFSET; x<SCREEN_X; x++){
+            for(int y=0; y<=ROTATION_VISUALIZER_LINE_WIDTH*2+ROTATION_VISALIZER_EDGE_OFFSET; y++){
+#ifdef PC
+                setPixel_Unsafe(x,y, FILL_SCREEN_COLOR);
+#else
+                vram[width*y + x] = FILL_SCREEN_COLOR;
+#endif
+            }
+        }
+
+        // Clear FPS Text (only for pc as pc draws on screen differently)
+#ifdef PC
+        for(int x=10; x < 50; x++){
+            for(int y=10; y < 6*4; y++){
+                setPixel_Unsafe(x,y, FILL_SCREEN_COLOR);
+            }
+        }
+#endif
+        // Clear light box
+        renderer.clear_LightLocation(FILL_SCREEN_COLOR);
+
+        // fillScreen(FILL_SCREEN_COLOR);
+
     } // while(!done)
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

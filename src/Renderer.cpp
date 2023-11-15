@@ -18,10 +18,11 @@
 #define MIN_LIGHT_INTENSITY 0.10f
 
 Renderer::Renderer()
-:   camera_pos({-6.0f, -1.6f, -8.0f}),
+:   camera_pos({-15.0f, -1.6f, -15.0f}),
     camera_rot({0.6f, 0.4f}),
     FOV(300.0f),
-    lightPos({0.0f, 0.0f, 0.0f})
+    lightPos({0.0f, 0.0f, 0.0f}),
+    lastLightScreenLocation({0, 0})
 {
 
 }
@@ -86,12 +87,6 @@ fix16_vec3& Renderer::get_lightPos(){
 // ------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------
-
-#ifdef PC
-    typedef uint32_t color_t; // SDL2 uses 32b colors (24b colors + 8b alpha). Alpha not used.
-#else
-    typedef uint16_t color_t; // ClassPad uses 16b colors
-#endif
 
 Fix16 calculateDistance(const fix16_vec3& v1, const fix16_vec3& v2) {
     Fix16 dx = v2.x - v1.x;
@@ -257,12 +252,10 @@ void draw_center_square(int16_t cx, int16_t cy, int16_t sx, int16_t sy, color_t 
 
 void draw_RotationVisualizer(fix16_vec2 camera_rot)
 {
-    const float line_width = 20.0f;
-    const int16_t right_edge_offset = 15;
     // Points to rotate
-    fix16_vec3 p_x     = {line_width,  0.0f,  0.0f};
-    fix16_vec3 p_y     = { 0.0f, -line_width,  0.0f};
-    fix16_vec3 p_z     = { 0.0f,  0.0f, line_width};
+    fix16_vec3 p_x     = {ROTATION_VISUALIZER_LINE_WIDTH,  0.0f,  0.0f};
+    fix16_vec3 p_y     = { 0.0f, -ROTATION_VISUALIZER_LINE_WIDTH,  0.0f};
+    fix16_vec3 p_z     = { 0.0f,  0.0f, ROTATION_VISUALIZER_LINE_WIDTH};
     // Rotations - x
     rotateOnPlane(p_x.x, p_x.z, camera_rot.x);
     rotateOnPlane(p_x.y, p_x.z, camera_rot.y);
@@ -277,28 +270,14 @@ void draw_RotationVisualizer(fix16_vec2 camera_rot)
     if (p_y.z == 0.0f) p_y.z = 0.001f;
     if (p_z.z == 0.0f) p_z.z = 0.001f;
     // Where to draw
-    const auto offset_x = SCREEN_X - right_edge_offset - (int16_t) line_width;
-    const auto offset_y =            right_edge_offset + (int16_t) line_width;
+    const auto offset_x = SCREEN_X - ROTATION_VISALIZER_EDGE_OFFSET - (int16_t) ROTATION_VISUALIZER_LINE_WIDTH;
+    const auto offset_y =            ROTATION_VISALIZER_EDGE_OFFSET + (int16_t) ROTATION_VISUALIZER_LINE_WIDTH;
     // Draw actual lines
     line(((int16_t) p_x.x)+offset_x,((int16_t) p_x.y)+offset_y, offset_x, offset_y, color(255,0,0));
     line(((int16_t) p_y.x)+offset_x,((int16_t) p_y.y)+offset_y, offset_x, offset_y, color(0,255,0));
     line(((int16_t) p_z.x)+offset_x,((int16_t) p_z.y)+offset_y, offset_x, offset_y, color(0,0,255));
 }
 
-void draw_SunLocation(Fix16 FOV, fix16_vec3 lightPos, fix16_vec3 camera_pos, fix16_vec2 camera_rot)
-{
-    Fix16 z_depth;
-    auto screen_vec2 = getScreenCoordinate(
-        FOV, lightPos,
-        {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f},
-        {1.0f, 1.0f, 1.0f},
-        camera_pos, camera_rot,
-        &z_depth
-    );
-    int16_t x = (int16_t)screen_vec2.x;
-    int16_t y = (int16_t)screen_vec2.y;
-    draw_center_square(x, y, 9,9, color(238,210,2));
-}
 
 // ------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------
@@ -328,9 +307,35 @@ inline void sort_modelRenderOrder(Pair<Model*, Fix16> a[], int n)
                 swap(a[i - 1], a[i]);
 }
 
+void Renderer::draw_LightLocation()
+{
+    Fix16 z_depth;
+    auto screen_vec2 = getScreenCoordinate(
+        FOV, lightPos,
+        {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f},
+        {1.0f, 1.0f, 1.0f},
+        camera_pos, camera_rot,
+        &z_depth
+    );
+    int16_t x = (int16_t)screen_vec2.x;
+    int16_t y = (int16_t)screen_vec2.y;
+    draw_center_square(x, y, 9,9, color(238,210,2));
+    lastLightScreenLocation.x = x;
+    lastLightScreenLocation.y = y;
+}
+
+void Renderer::clear_LightLocation(color_t clearColor)
+{
+    int16_t x = lastLightScreenLocation.x;
+    int16_t y = lastLightScreenLocation.y;
+    draw_center_square(x, y, 9,9, clearColor);
+}
+
+
 void Renderer::update(
-    const uint16_t RENDER_MODE
-){
+    int16_t_vec2* bbox_max,
+    int16_t_vec2* bbox_min
+) {
 
     // TODO: Wrap sorting in "if (user_has_moved)" because distances dont change
     //       when we dont move, so no need to sort aswell.
@@ -349,147 +354,41 @@ void Renderer::update(
     // Sort by camera distance (in reverse order)
     sort_modelRenderOrder(modelArray.getRawArray(), modelArray.getSize());
 
-    if (RENDER_MODE == 0)
+    for (unsigned m_id=0; m_id<getModelCount(); m_id++)
     {
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
-        {
-            // Check first if model has texture
-            if (getModelArray()[m_id].first->uv_coord_count == 0){
-                continue;
-            }
-            // For each model..
-            // Allocate memory first:
-            //   1. Screen coordinates
-            int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * getModelArray()[m_id].first->vertex_count);
-            //   2. Draw order list
-            Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * getModelArray()[m_id].first->vertex_count);
-            //   3. Face draw order (to be created)
-            uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * getModelArray()[m_id].first->faces_count);
-            //   4. Face Normals
-            fix16_vec3* face_normals = (fix16_vec3*) malloc(sizeof(fix16_vec3) * getModelArray()[m_id].first->faces_count);
+        auto RENDER_MODE = modelArray[m_id].first->render_mode;
+        if (RENDER_MODE == 0){
+            Fix16 fix16_sink;
             // Get screen coordinates
-            for (unsigned v_id=0; v_id<getModelArray()[m_id].first->vertex_count; v_id++){
+            for (unsigned v_id=0; v_id<modelArray[m_id].first->vertex_count; v_id++){
                 fix16_vec2 screen_vec2;
                 screen_vec2 = getScreenCoordinate(
-                    FOV, getModelArray()[m_id].first->vertices[v_id],
-                    getModelArray()[m_id].first->getPosition_ref(), getModelArray()[m_id].first->getRotation_ref(),
-                    getModelArray()[m_id].first->getScale_ref(),
+                    FOV, modelArray[m_id].first->vertices[v_id],
+                    modelArray[m_id].first->getPosition_ref(), modelArray[m_id].first->getRotation_ref(),
+                    modelArray[m_id].first->getScale_ref(),
                     camera_pos, camera_rot,
-                    &vert_z_depths[v_id]
+                    &fix16_sink
                 );
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
-                screen_coords[v_id] = {x, y};
-            }
-
-            // Init the face_draw_order
-            for (unsigned f_id=0; f_id<getModelArray()[m_id].first->faces_count; f_id++)
-            {
-                unsigned int f_v0_id = getModelArray()[m_id].first->faces[f_id].First;
-                unsigned int f_v1_id = getModelArray()[m_id].first->faces[f_id].Second;
-                unsigned int f_v2_id = getModelArray()[m_id].first->faces[f_id].Third;
-
-                // Get face z-depth
-                Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
-                f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
-                f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
-
-                // Init index = f_id
-                face_draw_order[f_id].uint = f_id;
-                face_draw_order[f_id].fix16 = f_z_depth;
-                // ----- Calculate also face normals here
-
-                // Face vertices
-                fix16_vec3 v0 = getModelArray()[m_id].first->vertices[f_v0_id];
-                fix16_vec3 v1 = getModelArray()[m_id].first->vertices[f_v1_id];
-                fix16_vec3 v2 = getModelArray()[m_id].first->vertices[f_v2_id];
-                // Model rotation
-                rotateOnPlane(v0.x, v0.z, getModelArray()[m_id].first->rotation.x);
-                rotateOnPlane(v0.y, v0.z, getModelArray()[m_id].first->rotation.y);
-                rotateOnPlane(v1.x, v1.z, getModelArray()[m_id].first->rotation.x);
-                rotateOnPlane(v1.y, v1.z, getModelArray()[m_id].first->rotation.y);
-                rotateOnPlane(v2.x, v2.z, getModelArray()[m_id].first->rotation.x);
-                rotateOnPlane(v2.y, v2.z, getModelArray()[m_id].first->rotation.y);
-                // Model traslation
-                v0.x += getModelArray()[m_id].first->position.x;
-                v0.y += getModelArray()[m_id].first->position.y;
-                v0.z += getModelArray()[m_id].first->position.z;
-                v1.x += getModelArray()[m_id].first->position.x;
-                v1.y += getModelArray()[m_id].first->position.y;
-                v1.z += getModelArray()[m_id].first->position.z;
-                v2.x += getModelArray()[m_id].first->position.x;
-                v2.y += getModelArray()[m_id].first->position.y;
-                v2.z += getModelArray()[m_id].first->position.z;
-                // Calculate face normal
-                auto face_norm = calculateNormal(v0, v1, v2);
-                normalize_fix16_vec3(face_norm);
-                //
-                face_normals[f_id] = face_norm;
-            }
-
-            // Sorting
-            bubble_sort(face_draw_order, getModelArray()[m_id].first->faces_count);
-
-            // Draw face edges
-            for (unsigned int ordered_id=0; ordered_id<getModelArray()[m_id].first->faces_count; ordered_id++)
-            {
-                auto f_id = face_draw_order[ordered_id].uint;
-                const auto v0 = screen_coords[getModelArray()[m_id].first->faces[f_id].First];
-                const auto v1 = screen_coords[getModelArray()[m_id].first->faces[f_id].Second];
-                const auto v2 = screen_coords[getModelArray()[m_id].first->faces[f_id].Third];
                 const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
-                if( v0.x == fix16_cast_int_min ||
-                    v1.x == fix16_cast_int_min ||
-                    v2.x == fix16_cast_int_min
-                ){
+                if( x == fix16_cast_int_min  ){
                     continue;
                 }
-                auto uv0_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].First];
-                auto uv1_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].Second];
-                auto uv2_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].Third];
-
-                auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
-                auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
-
-                auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
-                auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
-
-                auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
-                auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
-
-                int16_t_Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
-                int16_t_Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
-                int16_t_Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
-
-                const auto face_pos = getModelArray()[m_id].first->vertices[getModelArray()[m_id].first->faces[f_id].First];
-                Fix16 lightIntensity = calculateLightIntensity(
-                        lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
-                );
-
-                drawTriangle(
-                    v0_screen, v1_screen, v2_screen,
-                    getModelArray()[m_id].first->gen_uv_tex,
-                    getModelArray()[m_id].first->gen_textureWidth,
-                    getModelArray()[m_id].first->gen_textureHeight,
-                    lightIntensity
-                );
+                draw_center_square(x,y,5,5, color(0,0,0));
+                // Check bbox
+                if (bbox_max->x < x+2) bbox_max->x = x+2;
+                if (bbox_max->y < y+2) bbox_max->y = y+2;
+                if (bbox_min->x > x-2) bbox_min->x = x-2;
+                if (bbox_min->y > y-2) bbox_min->y = y-2;
             }
-            free(face_draw_order);
-            free(vert_z_depths);
-            free(screen_coords);
-            free(face_normals);
-        }
+        } // else if (RENDER_MODE == 0)
 
-        // Draw sun visualizer
-        draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
-
-    }  // if (RENDER_MODE == 0)
-
-    else if (RENDER_MODE == 1){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
+        else if (RENDER_MODE == 1)
         {
             // Check first if model has texture
-            if (modelArray[m_id].first->uv_coord_count == 0){
+            if (!modelArray[m_id].first->has_texture){
+                modelArray[m_id].first->render_mode++;
                 continue;
             }
             // For each model..
@@ -514,6 +413,15 @@ void Renderer::update(
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
+                // Check bbox
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( x == fix16_cast_int_min  ){
+                    continue;
+                }
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
 
             // Init the face_draw_order
@@ -579,11 +487,9 @@ void Renderer::update(
             free(vert_z_depths);
             free(screen_coords);
         }
-    }  // else if (RENDER_MODE == 1)
 
-    else if (RENDER_MODE == 2){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
-        {
+        else if (RENDER_MODE == 2){
+
             // For each model..
             // Allocate memory first:
             //   1. Screen coordinates
@@ -608,6 +514,15 @@ void Renderer::update(
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
+                // Check bbox
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( x == fix16_cast_int_min  ){
+                    continue;
+                }
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
             // Init the face_draw_order
             for (unsigned f_id=0; f_id<modelArray[m_id].first->faces_count; f_id++)
@@ -656,6 +571,13 @@ void Renderer::update(
             // Sorting
             bubble_sort(face_draw_order, modelArray[m_id].first->faces_count);
 
+            // Optimization: Create temporary light position that has negative model position in it.
+            //               Reduces addition from once per face to once per model.
+            fix16_vec3 shifted_lightPos = {lightPos.x, lightPos.y, lightPos.z};
+            shifted_lightPos.x -= modelArray[m_id].first->getPosition_ref().x;
+            shifted_lightPos.y -= modelArray[m_id].first->getPosition_ref().y;
+            shifted_lightPos.z -= modelArray[m_id].first->getPosition_ref().z;
+
             // Draw face edges
             for (unsigned int ordered_id=0; ordered_id<modelArray[m_id].first->faces_count; ordered_id++)
             {
@@ -671,9 +593,10 @@ void Renderer::update(
                     continue;
                 }
 
-                const auto face_pos = modelArray[m_id].first->vertices[modelArray[m_id].first->faces[f_id].First];
+                auto face_pos = modelArray[m_id].first->vertices[modelArray[m_id].first->faces[f_id].First];
+
                 Fix16 lightIntensity = calculateLightIntensity(
-                        lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
+                        shifted_lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
                 );
                 triangle(
                     v0.x,v0.y,v1.x,v1.y,v2.x,v2.y,
@@ -685,14 +608,13 @@ void Renderer::update(
             free(vert_z_depths);
             free(screen_coords);
             free(face_normals);
-        }
-        // Draw sun visualizer
-        draw_SunLocation(FOV, lightPos, camera_pos, camera_rot);
-    }  // else if (RENDER_MODE == 2)
 
-    else if (RENDER_MODE == 3){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
-        {
+            // Draw sun visualizer
+            draw_LightLocation();
+        }
+
+        else if (RENDER_MODE == 3){
+
             // For each model..
             // Allocate memory first:
             //   1. Screen coordinates
@@ -715,6 +637,15 @@ void Renderer::update(
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
+                // Check bbox
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( x == fix16_cast_int_min  ){
+                    continue;
+                }
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
 
             // Init the face_draw_order
@@ -762,12 +693,10 @@ void Renderer::update(
             free(face_draw_order);
             free(vert_z_depths);
             free(screen_coords);
-        }
-    }  // else if (RENDER_MODE == 3)
 
-    else if (RENDER_MODE == 4){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
-        {
+        }  // else if (RENDER_MODE == 3)
+
+        else if (RENDER_MODE == 4){
             // For each model..
             // Allocate memory first:
             //   1. Screen coordinates
@@ -787,6 +716,15 @@ void Renderer::update(
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
+                // Check bbox
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( x == fix16_cast_int_min  ){
+                    continue;
+                }
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
 
             for (unsigned int f_id=0; f_id<modelArray[m_id].first->faces_count; f_id++)
@@ -808,12 +746,11 @@ void Renderer::update(
                 );
             }
             free(screen_coords);
-        }
-    }  // else if (RENDER_MODE == 4)
 
-    else if (RENDER_MODE == 5){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
-        {
+        }  // else if (RENDER_MODE == 4)
+
+        else if (RENDER_MODE == 5){
+
             // For each model..
             // Allocate memory first:
             //   1. Screen coordinates
@@ -833,6 +770,15 @@ void Renderer::update(
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
                 screen_coords[v_id] = {x, y};
+                // Check bbox
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( x == fix16_cast_int_min  ){
+                    continue;
+                }
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
 
             for (unsigned int f_id=0; f_id<modelArray[m_id].first->faces_count; f_id++)
@@ -852,36 +798,172 @@ void Renderer::update(
                 line(v2.x,v2.y, v0.x, v0.y, color(0,0,0));
             }
             free(screen_coords);
-        }
-    } // else if (RENDER_MODE == 5)
 
-    else if (RENDER_MODE == 6){
-        for (unsigned m_id=0; m_id<getModelCount(); m_id++)
+        } // else if (RENDER_MODE == 5)
+
+        if (RENDER_MODE == 6)
         {
-            Fix16 fix16_sink;
+            // Check first if model has texture
+            if (!modelArray[m_id].first->has_texture){
+                modelArray[m_id].first->render_mode = 0;
+                continue;
+            }
+
+            // For each model..
+            // Allocate memory first:
+            //   1. Screen coordinates
+            int16_t_vec2* screen_coords = (int16_t_vec2*) malloc(sizeof(int16_t_vec2) * getModelArray()[m_id].first->vertex_count);
+            //   2. Draw order list
+            Fix16 * vert_z_depths = (Fix16*) malloc(sizeof(Fix16) * getModelArray()[m_id].first->vertex_count);
+            //   3. Face draw order (to be created)
+            uint_fix16_t * face_draw_order = (uint_fix16_t*) malloc(sizeof(uint_fix16_t) * getModelArray()[m_id].first->faces_count);
+            //   4. Face Normals
+            fix16_vec3* face_normals = (fix16_vec3*) malloc(sizeof(fix16_vec3) * getModelArray()[m_id].first->faces_count);
             // Get screen coordinates
-            for (unsigned v_id=0; v_id<modelArray[m_id].first->vertex_count; v_id++){
+            for (unsigned v_id=0; v_id<getModelArray()[m_id].first->vertex_count; v_id++){
                 fix16_vec2 screen_vec2;
                 screen_vec2 = getScreenCoordinate(
-                    FOV, modelArray[m_id].first->vertices[v_id],
-                    modelArray[m_id].first->getPosition_ref(), modelArray[m_id].first->getRotation_ref(),
-                    modelArray[m_id].first->getScale_ref(),
+                    FOV, getModelArray()[m_id].first->vertices[v_id],
+                    getModelArray()[m_id].first->getPosition_ref(), getModelArray()[m_id].first->getRotation_ref(),
+                    getModelArray()[m_id].first->getScale_ref(),
                     camera_pos, camera_rot,
-                    &fix16_sink
+                    &vert_z_depths[v_id]
                 );
                 int16_t x = (int16_t)screen_vec2.x;
                 int16_t y = (int16_t)screen_vec2.y;
+                screen_coords[v_id] = {x, y};
+                // Check bbox
                 const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
                 if( x == fix16_cast_int_min  ){
                     continue;
                 }
-                draw_center_square(x,y,5,5, color(0,0,0));
+                if (bbox_max->x < x) bbox_max->x = x;
+                if (bbox_max->y < y) bbox_max->y = y;
+                if (bbox_min->x > x) bbox_min->x = x;
+                if (bbox_min->y > y) bbox_min->y = y;
             }
 
-        }
-    } // else if (RENDER_MODE == 6)
+            // Init the face_draw_order
+            for (unsigned f_id=0; f_id<getModelArray()[m_id].first->faces_count; f_id++)
+            {
+                unsigned int f_v0_id = getModelArray()[m_id].first->faces[f_id].First;
+                unsigned int f_v1_id = getModelArray()[m_id].first->faces[f_id].Second;
+                unsigned int f_v2_id = getModelArray()[m_id].first->faces[f_id].Third;
+
+                // Get face z-depth
+                Fix16 f_z_depth  = vert_z_depths[f_v0_id]/3.0f;
+                f_z_depth       += vert_z_depths[f_v1_id]/3.0f;
+                f_z_depth       += vert_z_depths[f_v2_id]/3.0f;
+
+                // Init index = f_id
+                face_draw_order[f_id].uint = f_id;
+                face_draw_order[f_id].fix16 = f_z_depth;
+                // ----- Calculate also face normals here
+
+                // Face vertices
+                fix16_vec3 v0 = getModelArray()[m_id].first->vertices[f_v0_id];
+                fix16_vec3 v1 = getModelArray()[m_id].first->vertices[f_v1_id];
+                fix16_vec3 v2 = getModelArray()[m_id].first->vertices[f_v2_id];
+                // Model rotation
+                rotateOnPlane(v0.x, v0.z, getModelArray()[m_id].first->rotation.x);
+                rotateOnPlane(v0.y, v0.z, getModelArray()[m_id].first->rotation.y);
+                rotateOnPlane(v1.x, v1.z, getModelArray()[m_id].first->rotation.x);
+                rotateOnPlane(v1.y, v1.z, getModelArray()[m_id].first->rotation.y);
+                rotateOnPlane(v2.x, v2.z, getModelArray()[m_id].first->rotation.x);
+                rotateOnPlane(v2.y, v2.z, getModelArray()[m_id].first->rotation.y);
+                // Model traslation
+                v0.x += getModelArray()[m_id].first->position.x;
+                v0.y += getModelArray()[m_id].first->position.y;
+                v0.z += getModelArray()[m_id].first->position.z;
+                v1.x += getModelArray()[m_id].first->position.x;
+                v1.y += getModelArray()[m_id].first->position.y;
+                v1.z += getModelArray()[m_id].first->position.z;
+                v2.x += getModelArray()[m_id].first->position.x;
+                v2.y += getModelArray()[m_id].first->position.y;
+                v2.z += getModelArray()[m_id].first->position.z;
+                // Calculate face normal
+                auto face_norm = calculateNormal(v0, v1, v2);
+                normalize_fix16_vec3(face_norm);
+                //
+                face_normals[f_id] = face_norm;
+            }
+
+            // Sorting
+            bubble_sort(face_draw_order, getModelArray()[m_id].first->faces_count);
+
+            // Optimization: Create temporary light position that has negative model position in it.
+            //               Reduces addition from once per face to once per model.
+            fix16_vec3 shifted_lightPos = {lightPos.x, lightPos.y, lightPos.z};
+            shifted_lightPos.x -= modelArray[m_id].first->getPosition_ref().x;
+            shifted_lightPos.y -= modelArray[m_id].first->getPosition_ref().y;
+            shifted_lightPos.z -= modelArray[m_id].first->getPosition_ref().z;
+
+            // Draw face edges
+            for (unsigned int ordered_id=0; ordered_id<getModelArray()[m_id].first->faces_count; ordered_id++)
+            {
+                auto f_id = face_draw_order[ordered_id].uint;
+                const auto v0 = screen_coords[getModelArray()[m_id].first->faces[f_id].First];
+                const auto v1 = screen_coords[getModelArray()[m_id].first->faces[f_id].Second];
+                const auto v2 = screen_coords[getModelArray()[m_id].first->faces[f_id].Third];
+                const int16_t fix16_cast_int_min = (0xffff & (fix16_minimum>>16)) - 1;
+                if( v0.x == fix16_cast_int_min ||
+                    v1.x == fix16_cast_int_min ||
+                    v2.x == fix16_cast_int_min
+                ){
+                    continue;
+                }
+                auto uv0_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].First];
+                auto uv1_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].Second];
+                auto uv2_fix16_norm = getModelArray()[m_id].first->uv_coords[getModelArray()[m_id].first->uv_faces[f_id].Third];
+
+                auto v0_u = (int16_t) (uv0_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
+                auto v0_v = (int16_t) (uv0_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
+
+                auto v1_u = (int16_t) (uv1_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
+                auto v1_v = (int16_t) (uv1_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
+
+                auto v2_u = (int16_t) (uv2_fix16_norm.x * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureWidth)));
+                auto v2_v = (int16_t) (uv2_fix16_norm.y * (Fix16((int16_t)getModelArray()[m_id].first->gen_textureHeight)));
+
+                int16_t_Point2d v0_screen = {v0.x,v0.y, v0_u, v0_v};
+                int16_t_Point2d v1_screen = {v1.x,v1.y, v1_u, v1_v};
+                int16_t_Point2d v2_screen = {v2.x,v2.y, v2_u, v2_v};
+
+                const auto face_pos = getModelArray()[m_id].first->vertices[getModelArray()[m_id].first->faces[f_id].First];
+                Fix16 lightIntensity = calculateLightIntensity(
+                        shifted_lightPos, face_pos, face_normals[f_id], Fix16(1.0f)
+                );
+
+                drawTriangle(
+                    v0_screen, v1_screen, v2_screen,
+                    getModelArray()[m_id].first->gen_uv_tex,
+                    getModelArray()[m_id].first->gen_textureWidth,
+                    getModelArray()[m_id].first->gen_textureHeight,
+                    lightIntensity
+                );
+            }
+            free(face_draw_order);
+            free(vert_z_depths);
+            free(screen_coords);
+            free(face_normals);
+
+            // Draw sun visualizer
+            draw_LightLocation();
+        }  // if (RENDER_MODE == 6)
+    }
+
+    // Some buffer around bbox
+    bbox_min->x -= 2;
+    bbox_min->y -= 2;
+    bbox_max->x += 2;
+    bbox_max->y += 2;
+
+    // Check bbox - clamp
+    if(bbox_min->x < 0)        bbox_min->x = 0;
+    if(bbox_min->y < 0)        bbox_min->y = 0;
+    if(bbox_max->x > SCREEN_X) bbox_max->x = SCREEN_X;
+    if(bbox_max->y > SCREEN_Y) bbox_max->y = SCREEN_Y;
 
     // Draw rotation visualizer in corner
     draw_RotationVisualizer(camera_rot);
-
 }
