@@ -11,6 +11,10 @@
 #   include "PC_SDL_screen.hpp" // replaces "sdk/os/lcd.hpp"
 #endif
 
+// Light intensity range 1.0f - MIN_LIGHT_INTENSITY
+// It looks much better if colors wont go to full black
+#define MIN_LIGHT_INTENSITY 0.10f
+
 Renderer::Renderer()
 :   camera_pos({-6.0f, -1.6f, -8.0f}),
     camera_rot({0.6f, 0.4f}),
@@ -111,13 +115,22 @@ void normalize_fix16_vec3(fix16_vec3& vec)
     vec.z /= length;
 }
 
+inline Fix16 mapToRange(Fix16 value, Fix16 inputMin, Fix16 inputMax, Fix16 outputMin, Fix16 outputMax) {
+    return ((value - inputMin) / (inputMax - inputMin)) * (outputMax - outputMin) + outputMin;
+}
+
 Fix16 calculateLightIntensity(const fix16_vec3& lightPos, const fix16_vec3& surfacePos, const fix16_vec3& normal, Fix16 lightIntensity)
 {
     fix16_vec3 lightDir = {lightPos.x - surfacePos.x, lightPos.y - surfacePos.y, lightPos.z - surfacePos.z};
     normalize_fix16_vec3(lightDir);
 
+    // Intensity from 0.0f -> 1.0f
     Fix16 intensity = lightIntensity * fix16_max(0, lightDir.x * normal.x + lightDir.y * normal.y + lightDir.z * normal.z);
 
+    // Ensure intensity is at least minIntensity
+    intensity = fix16_max(intensity, Fix16(MIN_LIGHT_INTENSITY));
+
+    // Mapping between target value
     return intensity;
 }
 

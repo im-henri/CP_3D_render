@@ -18,6 +18,7 @@
 #ifndef PC
 #   include "app_description.hpp"
 #   include <sdk/calc/calc.hpp>
+#   include <sdk/os/input.hpp>
 #   include <sdk/os/lcd.hpp>
 #   include <sdk/os/debug.hpp>
 #   include <sdk/os/mem.hpp>
@@ -109,8 +110,8 @@ int custom_init(SDL_Window **window, SDL_Renderer **sdl_renderer, SDL_Texture **
     *window = SDL_CreateWindow("Classpad II PC demo",
                                 SDL_WINDOWPOS_UNDEFINED,
                                 SDL_WINDOWPOS_UNDEFINED,
-                                SCREEN_X*2,
-                                SCREEN_Y*2,
+                                (int) ((float) SCREEN_X * (float) WINDOW_SIZE_MULTIPLIER),
+                                (int) ((float) SCREEN_Y * (float) WINDOW_SIZE_MULTIPLIER),
                                 SDL_WINDOW_OPENGL);
     if (*window == nullptr) {
         SDL_Log("Could not create a window: %s", SDL_GetError());
@@ -295,6 +296,11 @@ int main(int argc, const char * argv[])
 // ~~~~~~~~~~~~~~~~~~~~ Key Presses ~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+#ifndef PC
+    // Only poll Calculator when any key was pressed
+    if (Input_IsAnyKeyDown())
+    {
+#endif
         if (KEY_QUIT)
             done = true;
 
@@ -344,6 +350,10 @@ int main(int argc, const char * argv[])
             renderer.get_camera_rot().y -= last_dt * CAMERA_SPEED;
         if(KEY_ROTATE_DOWN)
             renderer.get_camera_rot().y += last_dt * CAMERA_SPEED;
+
+#ifndef PC
+    } // Input_IsAnyKeyDown()
+#endif
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~

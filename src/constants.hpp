@@ -1,9 +1,7 @@
 #pragma once
 
 #ifdef PC
-#   define _SCREEN_SIZE_MULTIPLIER 1
-#else
-#   define _SCREEN_SIZE_MULTIPLIER 1
+#   define WINDOW_SIZE_MULTIPLIER 2.5f
 #endif
 
 #define SCREEN_X 320
