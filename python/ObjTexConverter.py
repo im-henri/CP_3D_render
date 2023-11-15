@@ -13,13 +13,17 @@ from PIL import Image
 #texture_path = None
 #out_name     = "test"
 
-model_path   = models_path / "test2.obj"
-texture_path = None
-out_name     = "test2"
+#model_path   = models_path / "test2.obj"
+#texture_path = None
+#out_name     = "test2"
 
 #model_path   = models_path / "suzanne.obj"
 #texture_path = None
 #out_name     = "suzanne"
+
+model_path   = models_path / "character_low.obj"
+texture_path = None
+out_name     = "character_low"
 
 #model_path   = models_path / "pika_clown3.obj"
 #texture_path = models_path / 'pika_clown3_512.png'
@@ -49,10 +53,10 @@ out_name     = "test2"
 ## (ClassPad - big endian) (Computer - most likely little endian)
 ############################################################
 
-obj_out_big_endian    = project_root / f"big_endian_{out_name}.pkObj"
-obj_out_little_endian = project_root / f"little_endian_{out_name}.pkObj"
-tex_out_big_endian    = project_root / f"big_endian_{out_name}.texture"
-tex_out_little_endian = project_root / f"little_endian_{out_name}.texture"
+obj_out_big_endian    = project_root / "3D_Converted_Models" / f"big_endian_{out_name}.pkObj"
+obj_out_little_endian = project_root / "3D_Converted_Models" / f"little_endian_{out_name}.pkObj"
+tex_out_big_endian    = project_root / "3D_Converted_Models" / f"big_endian_{out_name}.texture"
+tex_out_little_endian = project_root / "3D_Converted_Models" / f"little_endian_{out_name}.texture"
 
 #############
 

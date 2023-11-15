@@ -165,21 +165,21 @@ int main(int argc, const char * argv[])
 
     char model1_path[] =
 #ifdef PC
-        "./little_endian_pika.pkObj";
+        "./3D_Converted_Models/little_endian_pika.pkObj";
 #else
         "\\fls0\\big_endian_pika.pkObj";
 #endif
 
     char model1_texture_path[] =
 #ifdef PC
-        "./little_endian_pika.texture";
+        "./3D_Converted_Models/little_endian_pika.texture";
 #else
         "\\fls0\\big_endian_pika.texture";
 #endif
 
     char model2_path[] =
 #ifdef PC
-        "./little_endian_test.pkObj";
+        "./3D_Converted_Models/little_endian_test.pkObj";
 #else
         "\\fls0\\big_endian_test.pkObj";
 #endif
