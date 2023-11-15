@@ -163,18 +163,25 @@ int main(int argc, const char * argv[])
 #endif // PC
     bool KEY_RENDER_MODE_prev = false; // De-bouncing the button
 
-    char model_path[] =
+    char model1_path[] =
 #ifdef PC
-        "./little_endian.pkObj";
+        "./little_endian_pika.pkObj";
 #else
-        "\\fls0\\big_endian.pkObj";
+        "\\fls0\\big_endian_pika.pkObj";
 #endif
 
-    char model_texture_path[] =
+    char model1_texture_path[] =
 #ifdef PC
-        "./little_endian.texture";
+        "./little_endian_pika.texture";
 #else
-        "\\fls0\\big_endian.texture";
+        "\\fls0\\big_endian_pika.texture";
+#endif
+
+    char model2_path[] =
+#ifdef PC
+        "./little_endian_test.pkObj";
+#else
+        "\\fls0\\big_endian_test.pkObj";
 #endif
 
 #ifndef PC
@@ -189,9 +196,12 @@ int main(int argc, const char * argv[])
     Renderer renderer;
 
     // Add model to renderer and modify its initial rotation
-    auto model = renderer.addModel(model_path, model_texture_path);
-    //auto model = renderer.addModel(model_path, NO_TEXTURE);
+    auto model = renderer.addModel(model1_path, model1_texture_path);
     model->getRotation_ref().y = Fix16(3.145f/2.0f);
+
+    auto model2 = renderer.addModel(model2_path, NO_TEXTURE);
+    model2->getPosition_ref().x += 10.0f;
+    model2->getRotation_ref().y = Fix16(3.145f/2.0f);
 
 #ifdef PC
     uint32_t time_t0 = SDL_GetTicks();

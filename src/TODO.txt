@@ -16,7 +16,7 @@
     Before rendering sort modelsArray by distancd.
     -> could also check object circular size that could be calculated during ctor
 
-[ ] Allow texture path as "".On ctor check if texture path is not "" and there is uv coordinates
+[x] Allow texture path as "".On ctor check if texture path is not "" and there is uv coordinates
     -> if any is false set bool has texture = false
 
 [ ] Render mode: Make it per model. Store render mode value in Model class.

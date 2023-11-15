@@ -72,6 +72,11 @@ public:
         return array[index];
     }
 
+    T* getRawArray()
+    {
+        return array;
+    }
+
     ~DynamicArray()
     {
         // Free the dynamically allocated memory

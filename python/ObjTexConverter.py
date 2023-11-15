@@ -9,14 +9,17 @@ from PIL import Image
 ## version in classpad. (Computer uses most likely little.)
 ############################################################
 
-#model_path   = models_path / "test.obj"
-#texture_path = None
+model_path   = models_path / "test.obj"
+texture_path = None
+out_name     = "test"
 
 #model_path   = models_path / "suzanne.obj"
 #texture_path = None
+#out_name     = "suzanne"
 
-model_path   = models_path / "pika_clown3.obj"
-texture_path = models_path / 'pika_clown3_512.png'
+#model_path   = models_path / "pika_clown3.obj"
+#texture_path = models_path / 'pika_clown3_512.png'
+#out_name    = "pika"
 
 ########################## DETAILS #########################
 ## Writes *.obj out as custom binary format *.pkObj which
@@ -42,10 +45,10 @@ texture_path = models_path / 'pika_clown3_512.png'
 ## (ClassPad - big endian) (Computer - most likely little endian)
 ############################################################
 
-obj_out_big_endian    = project_root / "big_endian.pkObj"
-obj_out_little_endian = project_root / "little_endian.pkObj"
-tex_out_big_endian    = project_root / "big_endian.texture"
-tex_out_little_endian = project_root / "little_endian.texture"
+obj_out_big_endian    = project_root / f"big_endian_{out_name}.pkObj"
+obj_out_little_endian = project_root / f"little_endian_{out_name}.pkObj"
+tex_out_big_endian    = project_root / f"big_endian_{out_name}.texture"
+tex_out_little_endian = project_root / f"little_endian_{out_name}.texture"
 
 #############
 

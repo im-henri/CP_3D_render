@@ -4,6 +4,8 @@
 
 #include "DynamicArray.hpp"
 
+#include "Pair.hpp"
+
 #define _NO_TEXTURE_IMPL    (char*)NO_TEXTURE_PATH
 #define NO_TEXTURE          _NO_TEXTURE_IMPL
 
@@ -12,7 +14,8 @@ const char NO_TEXTURE_PATH[] = "\0";
 class Renderer
 {
 private:
-    DynamicArray<Model*> modelArray;
+    DynamicArray<Pair<Model*, Fix16>> modelArray;
+
     fix16_vec3 camera_pos;
     fix16_vec2 camera_rot;
     Fix16 FOV;
@@ -21,7 +24,7 @@ private:
 
 public:
 
-    DynamicArray<Model*>& getModelArray();
+    DynamicArray<Pair<Model*, Fix16>>& getModelArray();
     // If model has no texture, set as NO_TEXTURE
     Model* addModel(char* model_path, char* texture_path);
     unsigned int getModelCount();
