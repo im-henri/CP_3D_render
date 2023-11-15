@@ -26,7 +26,9 @@ Model::Model(
 ) : loaded_from_file(false),
     position({0.0f, 0.0f, 0.0f}), rotation({0.0f, 0.0f}), scale({1.0f,1.0f,1.0f}),
     vertices(vertices), vertex_count(vertex_count),
-    faces(faces), faces_count(faces_count)
+    faces(faces), faces_count(faces_count),
+    has_texture(false),
+    gen_textureWidth(0), gen_textureHeight(0)
 { }
 
 Model::~Model()
@@ -37,7 +39,9 @@ Model::~Model()
         free(faces);
         free(uv_faces);
         free(uv_coords);
-        free(gen_uv_tex);
+        if(has_texture){
+            free(gen_uv_tex);
+        }
     }
 }
 
@@ -47,7 +51,9 @@ Model::Model(
 ) : loaded_from_file(false),
     position({0.0f, 0.0f, 0.0f}), rotation({0.0f, 0.0f}), scale({1.0f,1.0f,1.0f}),
     vertices(nullptr), vertex_count(0),
-    faces(nullptr), faces_count(0)
+    faces(nullptr), faces_count(0),
+    has_texture(false),
+    gen_textureWidth(0), gen_textureHeight(0)
 {
     //loaded_from_file = this->load_from_raw_obj_file(fname);
     loaded_from_file = this->load_from_binary_obj_file(fname, ftexture);
@@ -70,6 +76,9 @@ fix16_vec3& Model::getScale_ref()
 
 bool Model::load_from_binary_obj_file(char* fname, char* ftexture)
 {
+
+    // ~~~~~~~~~~~~~~~~~~~~~ Object ~~~~~~~~~~~~~~~~~~~~~
+
     int fd = open(fname, UNIVERSIAL_FILE_READ );
     char buff[32] = {0};
 
@@ -118,26 +127,27 @@ bool Model::load_from_binary_obj_file(char* fname, char* ftexture)
 
     // Finally close file handle
     close(fd);
-/*
+
+    // ~~~~~~~~~~~~~~~~~~~~~ Texture ~~~~~~~~~~~~~~~~~~~~~
+
+    if (ftexture[0] == '\0'){
 #ifdef PC
-    for (int i=0;i<uv_coord_count; i++){
-        std::cout << "uv(" << i << "): x = "
-                 << (float) uv_coords[i].x
-                 << " y = " << (float) uv_coords[i].y
-                 << std::endl;
-    }
-    for (int i=0;i<uv_face_count; i++){
-        std::cout << "uv_face(" << i << "):"
-                 << " id0 = " << uv_faces[i].First
-                 << " id1 = " << uv_faces[i].Second
-                 << " id2 = " << uv_faces[i].Third
-                 << std::endl;
-    }
+        std::cout << "No texture was provided" << std::endl;
 #endif
-*/
+        this->has_texture = false;
+        return true;
+    }
+
+    if (uv_face_count == 0){
+#ifdef PC
+        std::cout << "Model has no texture (No UV coordinates). Not loading texture." << std::endl;
+#endif
+        this->has_texture = false;
+        return true;
+    }
 
     // Now load
-    fd = open(ftexture, UNIVERSIAL_FILE_READ );
+    fd = open(ftexture, UNIVERSIAL_FILE_READ);
     memset(buff, 0, 32);
     read(fd, buff, 31);
     uint32_t tex_size_x = *((uint32_t*)(buff+0));
@@ -147,14 +157,14 @@ bool Model::load_from_binary_obj_file(char* fname, char* ftexture)
 
     this->gen_textureWidth  = tex_size_x;
     this->gen_textureHeight = tex_size_y;
+    this->has_texture = true;
 
 #ifdef PC
         std::cout
-                 << " tex_size_x = " << tex_size_x
+                 << "tex_size_x = " << tex_size_x
                  << " tex_size_y = " << tex_size_y
                  << std::endl;
 #endif
-
     // Read binary to textuer
     lseek(fd, lseek_texture_start, SEEK_SET);
     this->gen_uv_tex = (uint32_t*) malloc(sizeof(uint32_t) * tex_size_x*tex_size_y);

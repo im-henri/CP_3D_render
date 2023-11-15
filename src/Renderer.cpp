@@ -37,6 +37,7 @@ DynamicArray<Model*>& Renderer::getModelArray()
     return modelArray;
 }
 
+// If model has no texture, set it as NO_TEXTURE
 Model* Renderer::addModel(char* model_path, char* texture_path)
 {
     // Create new object

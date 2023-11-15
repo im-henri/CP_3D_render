@@ -43,6 +43,7 @@ public:
     u_triple*   uv_faces;
     unsigned    uv_face_count;
 
+    bool has_texture;
     int gen_textureWidth;
     int gen_textureHeight;
     uint32_t * gen_uv_tex; // Malloced array of size: gen_textureWidth * gen_textureHeight

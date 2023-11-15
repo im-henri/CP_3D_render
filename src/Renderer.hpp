@@ -4,6 +4,11 @@
 
 #include "DynamicArray.hpp"
 
+#define _NO_TEXTURE_IMPL    (char*)NO_TEXTURE_PATH
+#define NO_TEXTURE          _NO_TEXTURE_IMPL
+
+const char NO_TEXTURE_PATH[] = "\0";
+
 class Renderer
 {
 private:
@@ -17,6 +22,7 @@ private:
 public:
 
     DynamicArray<Model*>& getModelArray();
+    // If model has no texture, set as NO_TEXTURE
     Model* addModel(char* model_path, char* texture_path);
     unsigned int getModelCount();
 

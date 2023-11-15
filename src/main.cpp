@@ -190,6 +190,7 @@ int main(int argc, const char * argv[])
 
     // Add model to renderer and modify its initial rotation
     auto model = renderer.addModel(model_path, model_texture_path);
+    //auto model = renderer.addModel(model_path, NO_TEXTURE);
     model->getRotation_ref().y = Fix16(3.145f/2.0f);
 
 #ifdef PC
