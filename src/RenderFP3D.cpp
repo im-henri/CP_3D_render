@@ -25,7 +25,8 @@ fix16_vec2 getScreenCoordinate(
     Fix16 FOV, fix16_vec3 point,
     fix16_vec3 translate, fix16_vec2 rotation, fix16_vec3 scale,
     fix16_vec3 camera_pos, fix16_vec2 camera_rot,
-    Fix16* z_depth_out
+    Fix16* z_depth_out,
+    bool* is_valid
 ) {
     Fix16 sx, sy;
 
@@ -72,8 +73,12 @@ fix16_vec2 getScreenCoordinate(
         ||
         sy < (0.0f-extra) || sy > ((float)SCREEN_Y+extra)
     ){
+        *is_valid = false;
         sx = fix16_minimum;
         //sy = fix16_minimum;
+    }
+    else{
+        *is_valid = true;
     }
 
     return fix16_vec2({sx, sy});

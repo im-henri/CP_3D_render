@@ -331,23 +331,31 @@ int main(int argc, const char * argv[])
         if(KEY_MOVE_LEFT)  {
             renderer.get_camera_pos().z += renderer.get_camera_rot().x.sin() * last_dt * MOVEMENT_SPEED;
             renderer.get_camera_pos().x -= renderer.get_camera_rot().x.cos() * last_dt * MOVEMENT_SPEED;
+            renderer.camera_move_dirty = true;
         }
         if(KEY_MOVE_RIGHT) {
             renderer.get_camera_pos().z -= renderer.get_camera_rot().x.sin() * last_dt * MOVEMENT_SPEED;
             renderer.get_camera_pos().x += renderer.get_camera_rot().x.cos() * last_dt * MOVEMENT_SPEED;
+            renderer.camera_move_dirty = true;
         }
         if(KEY_MOVE_FORWARD)    {
             renderer.get_camera_pos().x += renderer.get_camera_rot().x.sin() * last_dt * MOVEMENT_SPEED;
             renderer.get_camera_pos().z += renderer.get_camera_rot().x.cos() * last_dt * MOVEMENT_SPEED;
+            renderer.camera_move_dirty = true;
         }
         if(KEY_MOVE_BACKWARD)  {
             renderer.get_camera_pos().x -= renderer.get_camera_rot().x.sin() * last_dt * MOVEMENT_SPEED;
             renderer.get_camera_pos().z -= renderer.get_camera_rot().x.cos() * last_dt * MOVEMENT_SPEED;
+            renderer.camera_move_dirty = true;
         }
-        if(KEY_MOVE_UP)
+        if(KEY_MOVE_UP) {
             renderer.get_camera_pos().y -= last_dt * MOVEMENT_SPEED;
-        if(KEY_MOVE_DOWN)
+            renderer.camera_move_dirty = true;
+        }
+        if(KEY_MOVE_DOWN){
             renderer.get_camera_pos().y += last_dt * MOVEMENT_SPEED;
+            renderer.camera_move_dirty = true;
+        }
 
         if(KEY_MOVE_FOV_ADD)
             renderer.get_FOV() += last_dt * FOV_UPDATE_SPEED;
@@ -362,7 +370,8 @@ int main(int argc, const char * argv[])
                     model->render_mode = RENDER_MODE_COUNT - 1;
             }
             KEY_RENDER_MODE_prev = true;
-        } else {
+        }
+        else{
             KEY_RENDER_MODE_prev = false;
         }
 
@@ -377,6 +386,9 @@ int main(int argc, const char * argv[])
 
 #ifndef PC
     } // Input_IsAnyKeyDown()
+    else {
+        KEY_RENDER_MODE_prev = false;
+    }
 #endif
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

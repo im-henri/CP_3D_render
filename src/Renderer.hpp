@@ -38,6 +38,8 @@ private:
 
 public:
 
+    bool camera_move_dirty;
+
     DynamicArray<Pair<Model*, Fix16>>& getModelArray();
     // If model has no texture, set as NO_TEXTURE
     Model* addModel(char* model_path, char* texture_path);
