@@ -179,9 +179,9 @@ int main(int argc, const char * argv[])
 
     char model2_path[] =
 #ifdef PC
-        "./3D_Converted_Models/little_endian_test.pkObj";
+        "./3D_Converted_Models/little_endian_cube.pkObj";
 #else
-        "\\fls0\\big_endian_test.pkObj";
+        "\\fls0\\big_endian_cube.pkObj";
 #endif
 
     fillScreen(FILL_SCREEN_COLOR);
@@ -220,6 +220,9 @@ int main(int argc, const char * argv[])
         m->getRotation_ref().y = Fix16(3.145f/2.0f);
         m->render_mode = (rend_mod++)%RENDER_MODE_COUNT;
 
+        // Scale model such that the max width
+        // between furthest vertices is 7.0f
+        m->_scaleModelTo(7.0f);
     }
 #ifdef PC
     uint32_t time_t0 = SDL_GetTicks();

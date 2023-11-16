@@ -19,14 +19,12 @@ class Model
 private:
     bool loaded_from_file;
 
+    // Transform raw model vertices to the geometric center
+    void _centerModel();
+
 public:
-    Model(
-        fix16_vec3* vertices,
-        unsigned    vertex_count,
-        u_triple*   faces,
-        unsigned    faces_count
-    );
-    Model(char* fname, char* ftexture);
+
+    Model(char* fname, char* ftexture, bool centerVertices);
     ~Model();
 
     fix16_vec3 position;
@@ -54,9 +52,13 @@ public:
 
     uint16_t render_mode;
 
-    // SUPER slow
-    bool load_from_raw_obj_file(char* fname);
-    // Way faster (Run obj through python script to generate binary format)
-    bool load_from_binary_obj_file(char* fname, char* ftexture);
+    // Run obj through python script to generate binary format
+    bool load_from_binary_obj_file(char* fname, char* ftexture, bool center=true);
+
+    // Scale raw model vertices
+    void _scaleModel(Fix16 factor);
+    // Scale raw model vertices such that distance between its 2 furthest
+    // apart vertices is given maxWidth
+    void _scaleModelTo(Fix16 maxWidth);
 
 };

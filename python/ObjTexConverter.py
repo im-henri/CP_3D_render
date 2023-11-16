@@ -25,6 +25,10 @@ model_path   = models_path / "character_low.obj"
 texture_path = None
 out_name     = "character_low"
 
+#model_path   = models_path / "cube.obj"
+#texture_path = None
+#out_name     = "cube"
+
 #model_path   = models_path / "pika_clown3.obj"
 #texture_path = models_path / 'pika_clown3_512.png'
 #out_name    = "pika"
