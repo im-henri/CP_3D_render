@@ -2,6 +2,7 @@
 *.o
 *.hhk
 *.bin
+!App_sw_3d.bin
 
 # make PC binary
 pc_out
