@@ -50,5 +50,5 @@ python/ObjTexConverter.py
 ```
 
 Credits:
-hollyhock2: https://github.com/SnailMath/hollyhock-2
-Libfixmath: https://github.com/PetteriAimonen/libfixmath/tree/master
+- hollyhock2: https://github.com/SnailMath/hollyhock-2
+- Libfixmath: https://github.com/PetteriAimonen/libfixmath/tree/master
