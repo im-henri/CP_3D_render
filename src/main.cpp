@@ -192,6 +192,10 @@ int main(int argc, const char * argv[])
     LCD_Refresh();
 #endif
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~  Creating Renderer and Models ~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     // Create renderer
     Renderer renderer;
 
@@ -199,12 +203,12 @@ int main(int argc, const char * argv[])
     auto model = renderer.addModel(model1_path, model1_texture_path);
     model->getRotation_ref().y = Fix16(3.145f/2.0f);
 
-    uint16_t rend_mod = 0;
 
     Fix16 place_in_circle = 0.0f;
     const int16_t place_count = 4;
     const Fix16 radius = 13.0f;
     Model* autoplaced_models[place_count];
+    uint16_t rend_mod = 0;
     for(int16_t i=0; i<place_count; i++){
         place_in_circle = ((Fix16(fix16_pi)) * 2.0f * Fix16(i) / place_count);
 
@@ -400,7 +404,6 @@ int main(int argc, const char * argv[])
 
         // Only doing simple rotation in main loop
         model->getRotation_ref().x += last_dt * 0.5f;
-
 
         auto roty = autoplaced_models[0]->getRotation_ref().y + last_dt * 1.0f;
         auto rotx = autoplaced_models[0]->getRotation_ref().x + last_dt * 1.0f;

@@ -1,23 +1,5 @@
-
-[x] Bounding-box clearing. In Renderer update, when calculating screen coordinates
-    then also keep track of min and max x,y (bbox).
-    Probably easiest to keep global bbox instead of
-    making bunch of local clears as that sounds like even slower.
-
-[x] Use : isAnyKeyDown to reduce the key polling time..
-
-[x] Light minimum value (full black looks bad)
-
-[x] Object center distance to camera, per object render order.
-    Before rendering sort modelsArray by distancd.
-    -> could also check object circular size that could be calculated during ctor
-
-[x] Allow texture path as "".On ctor check if texture path is not "" and there is uv coordinates
-    -> if any is false set bool has texture = false
-
-[x] Render mode: Make it per model. Store render mode value in Model class.
-
-[x] Sort object list only when user has moved
+[ ] During model ctor, find model center and calculate radius R that encapsulates the sphere
+    fully. Then store this in model and only ever render model when the Sphere is visible.
 
 [ ] Make render modes cleaner instead of copy paste 6x times...
 

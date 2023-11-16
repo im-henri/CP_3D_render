@@ -1,15 +1,26 @@
-TODO: Update readme (hollyhock2)
+3D Renderer using fixed point math. For casio ClassPad ii fx-cp400
 
-3D Renderer using fixed point math.
+Features:
+- .obj models (converted to binary format)
+- Textures
+- Lighting
+- 6 different render modes
 
-To compile for calulator only:
+Compile for calculator run makefile:
+```
+make
+```
 
-- $make
+Compile for computer with SDL2 graphics library
+```
+make PC
+```
 
-To compile for calculator and PC and then run PC version:
-
-- %make PC
+To create new binary format models + textures edit and run python script
+```
+python/ObjTexConverter.py
+```
 
 Credits:
-
+hollyhock2: https://github.com/SnailMath/hollyhock-2
 Libfixmath: https://github.com/PetteriAimonen/libfixmath/tree/master
