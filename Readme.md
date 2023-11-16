@@ -12,10 +12,10 @@ make
 ```
 Copy everything to the root of calculator:
 ```
-./App_sw_3d.bin
-./3D_Converted_Models/big_endian_pika.pkObj
-./3D_Converted_Models/big_endian_pika.texture
-./3D_Converted_Models/big_endian_cube.pkObj
+App_sw_3d.bin
+big_endian_pika.pkObj    (from folder ./3D_Converted_Models)
+big_endian_pika.texture  (from folder ./3D_Converted_Models)
+big_endian_cube.pkObj    (from folder ./3D_Converted_Models)
 ```
 
 
